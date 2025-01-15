@@ -81,6 +81,9 @@ export abstract class Goal {
      * @param visitor The mapper that will map the necessary metrics for this goal.
      */
     abstract accept(visitor: GoalVisitor): void;
+
+    // Custom toJSON method to handle circular references
+    abstract toJSON(): any;
 }
 
 /**
@@ -125,6 +128,17 @@ export class CompositeGoal extends Goal {
         console.log(`${' '.repeat(depth * 2)}Composite Goal: ${this.name}`);
         this._subGoals.forEach(goal => goal.displayInfo(depth + 1));
     }
+
+    // Custom toJSON method to handle circular references
+    toJSON() {
+        return {
+            name: this.name,
+            description: this.description,
+            weight: this.weight,
+            metrics: this.metrics.map(metric => metric.name),
+            subGoals: this._subGoals.map(goal => goal.toJSON()) // Recursively serialize sub-goals
+        };
+    }
 }
 
 /**
@@ -141,6 +155,16 @@ export class LeafGoal extends Goal {
 
     displayInfo(depth: number = 0): void {
         console.log(`${' '.repeat(depth * 2)}Leaf Goal: ${this.name}`);
+    }
+
+    // Custom toJSON method to handle circular references
+    toJSON() {
+        return {
+            name: this.name,
+            description: this.description,
+            weight: this.weight,
+            metrics: this.metrics.map(metric => metric.name)
+        };
     }
 }
 

@@ -9,15 +9,27 @@ export abstract class Metric {
     protected _value: any;
     /**
      * Constructs a new Metric instance.
-     * @param name The name of the metric.
-     * @param description A brief description of what the metric measures.
-     * @param requiredTelemetry The types of telemetry required to compute this metric.
+     * @param _name The name of the metric.
+     * @param _description A brief description of what the metric measures.
+     * @param _requiredTelemetry The types of telemetry required to compute this metric.
      */
     constructor(
-        protected name: string,
-        protected description: string,
-        protected acronym: string = "",
-        protected requiredTelemetry: TelemetryType[] = []){
+        protected _name: string,
+        protected _description: string,
+        protected _acronym: string = "",
+        protected _requiredTelemetry: TelemetryType[] = []){
+    }
+
+    get name(): string {
+        return this._name;
+    }
+
+    get description(): string {
+        return this._description;
+    }
+
+    get acronym(): string {
+        return this._acronym;
     }
 
     get value(): any {
@@ -30,13 +42,13 @@ export abstract class Metric {
      * @returns true if the telemetry type is required, false otherwise.
      */
     hasRequiredTelemetry(telemetryType: TelemetryType): boolean{
-        return this.requiredTelemetry.includes(telemetryType);
+        return this._requiredTelemetry.includes(telemetryType);
     }
 
     setRequiredTelemetry(telemetryTypes: TelemetryType[]) {
         telemetryTypes.forEach(type => {
             if (!this.hasRequiredTelemetry(type))
-                this.requiredTelemetry.push(type);
+                this._requiredTelemetry.push(type);
         });
     }
 
@@ -44,8 +56,8 @@ export abstract class Metric {
      * Displays information about the metric.
      */
     displayInfo(): void{
-        console.log(`name: ${this.name}, acronym: ${this.acronym}, description: ${this.description}, value: ${this.computeValue()}`);
-        console.log(`required telemetry: ${this.requiredTelemetry}`);
+        console.log(`name: ${this._name}, acronym: ${this._acronym}, description: ${this._description}, value: ${this.computeValue()}`);
+        console.log(`required telemetry: ${this._requiredTelemetry}`);
     }
 
     /**

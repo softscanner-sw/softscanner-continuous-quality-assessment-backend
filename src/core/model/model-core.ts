@@ -148,4 +148,14 @@ export class QualityModel {
             console.log(`Assessment Methodology: ${this.assessmentMethodology}`);
         this.goals.forEach(goal => goal.displayInfo());
     }
+
+    toJSON() {
+        return {
+            name: this.name,
+            version: this.version,
+            purpose: this.purpose,
+            assessmentMethodology: this.assessmentMethodology,
+            goals: this.goals.map(goal => goal.toJSON()) // Serialize goals
+        };
+    }
 }
