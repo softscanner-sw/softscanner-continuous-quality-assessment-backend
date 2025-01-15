@@ -36,6 +36,10 @@ export abstract class Metric {
         return this._value;
     }
 
+    get requiredTelemetry(): TelemetryType[] {
+        return this._requiredTelemetry;
+    }
+
     /**
      * Checks if a specific type of telemetry is required by this metric.
      * @param telemetryType The type of telemetry to check.

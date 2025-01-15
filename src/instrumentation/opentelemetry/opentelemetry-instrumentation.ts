@@ -7,7 +7,7 @@ import { ApplicationInstrumentationMetadata, InstrumentationGenerator, Telemetry
 import { Metric } from "../../core/metrics/metrics-core";
 import { Utils } from "../../core/util/util-core";
 import { OpenTelemetryInstrumentationStrategy } from "./strategies/opentelemetry-instrumentation-strategy-core";
-import { OpenTelemetryMetadataSpanProcessingInstrumentationStrategy, OpenTelemetryAutomaticTracingOptions, OpenTelemetrySessionDataInstrumentationStrategy, OpenTelemetryTracingInstrumentationStrategy, OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy } from "./strategies/opentelemetry-instrumentation-strategy-tracing";
+import { OpenTelemetryAutomaticTracingOptions, OpenTelemetryMetadataSpanProcessingInstrumentationStrategy, OpenTelemetrySessionDataInstrumentationStrategy, OpenTelemetryTracingInstrumentationStrategy, OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy } from "./strategies/opentelemetry-instrumentation-strategy-tracing";
 
 export class OpenTelemetryEventRegistry {
     static registry: Map<UserInteractionEvent, string> = new Map<UserInteractionEvent, string>();
@@ -211,6 +211,10 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
     public async exportInstrumentationFiles(): Promise<void> {
         const instrumentationStrategy = this._instrumentationStrategy as OpenTelemetryInstrumentationStrategy;
         const srcPath = instrumentationStrategy.srcPath;
+
+        if (!srcPath)
+            throw new Error(`Source path '${srcPath}' is undefined.`);
+
         const mainPath = path.join(srcPath, 'main');
         let utilsPath = '';
 

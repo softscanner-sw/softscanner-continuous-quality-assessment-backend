@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { SSQMM } from '../core/model/model-mapping';
 import { ApplicationMetadata } from '../core/application-core';
+import { QualityAssessmentService } from '../assessment/quality-assessment-service';
 
 // Initialize the app
 const app = express();
@@ -13,14 +14,14 @@ app.use(cors());
 // Middleware to parse JSON
 app.use(express.json());
 
-// Create an instance of SSQMM
-const ssqmm = new SSQMM();
+// Create an instance of the QualityAssessmentService
+const qualityAssessmentService = new QualityAssessmentService();
 
 /**
  * Endpoint to retrieve the quality model and goals
  */
 app.get('/api/quality-model', (req: Request, res: Response) => {
-    res.json(ssqmm.qualityModel.toJSON());
+    res.json(qualityAssessmentService.ssqmm.qualityModel.toJSON());
 });
 
 /**
@@ -52,25 +53,13 @@ app.post('/api/quality-assessment', async (req: Request, res: Response) => {
 
     // Perform quality assessment with the received data
     try {
-        await triggerInstrumentation(appMetadata, selectedGoals);
+        await qualityAssessmentService.performQualityAssessment(appMetadata, selectedGoals);
         res.status(200).send({ message: 'Quality assessment started successfully!' });
     } catch (error) {
         console.error('Error during assessment:', error);
         res.status(500).send({ error: 'Failed to start quality assessment' });
     }
 });
-
-/**
- * Function to trigger instrumentation and bundle injection
- */
-async function triggerInstrumentation(metadata: ApplicationMetadata, goals: string[]) {
-    // Placeholder for your existing instrumentation logic
-    console.log('Triggering instrumentation process...');
-    console.log('Application Name:', metadata.name);
-    console.log('Selected Goals:', goals);
-
-    // Add your bundle injection logic here
-}
 
 // Start the server
 app.listen(port, () => {

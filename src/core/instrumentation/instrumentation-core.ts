@@ -36,7 +36,7 @@ export interface InstrumentationBundle {
  * Abstract class that provides a base for instrumentation bundles.
  * It encapsulates common properties and getters for subclasses.
  */
-export abstract class AbstractInstrumentationBundle {
+export abstract class AbstractInstrumentationBundle implements InstrumentationBundle{
     constructor(
         protected _fileName: string,
         protected _instrumentationfiles: Instrumentation[] = [],
