@@ -6,6 +6,7 @@ import { TelemetryType } from "../instrumentation/instrumentation-core";
  * from telemetry data.
  */
 export abstract class Metric {
+    protected _value: any;
     /**
      * Constructs a new Metric instance.
      * @param name The name of the metric.
@@ -15,7 +16,12 @@ export abstract class Metric {
     constructor(
         protected name: string,
         protected description: string,
+        protected acronym: string = "",
         protected requiredTelemetry: TelemetryType[] = []){
+    }
+
+    get value(): any {
+        return this._value;
     }
 
     /**
@@ -27,11 +33,18 @@ export abstract class Metric {
         return this.requiredTelemetry.includes(telemetryType);
     }
 
+    setRequiredTelemetry(telemetryTypes: TelemetryType[]) {
+        telemetryTypes.forEach(type => {
+            if (!this.hasRequiredTelemetry(type))
+                this.requiredTelemetry.push(type);
+        });
+    }
+
     /**
      * Displays information about the metric.
      */
     displayInfo(): void{
-        console.log(`name: ${this.name}, description: ${this.description}, value: ${this.computeValue()}`);
+        console.log(`name: ${this.name}, acronym: ${this.acronym}, description: ${this.description}, value: ${this.computeValue()}`);
         console.log(`required telemetry: ${this.requiredTelemetry}`);
     }
 

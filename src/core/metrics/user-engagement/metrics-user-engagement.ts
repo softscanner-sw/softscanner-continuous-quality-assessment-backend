@@ -1,40 +1,14 @@
-import { TelemetryType, UserInteractionEvent } from "../../core/instrumentation/instrumentation-core";
-import { Metric } from "../../core/metrics/metrics-core";
-import { Utils } from "../../core/util/util-core";
+import { TelemetryType, UserInteractionEvent } from "../../instrumentation/instrumentation-core";
+import { Metric } from "../metrics-core";
+import { Utils } from "../../util/util-core";
 
-/**
- * Represents a User Experience (UX) specific metric. This is an extension
- * of the Metric class, tailored to UX metrics, including an acronym for
- * the metric.
- */
-export abstract class UXMetric extends Metric {
-    protected _value: any;
-
-    /**
-     * Constructs a new UXMetric instance.
-     * @param name The name of the UX metric.
-     * @param description A brief description of what the UX metric measures.
-     * @param acronym An optional acronym for the metric.
-     * @param requiredTelemetry The types of telemetry required to compute this UX metric.
-     */
-    constructor(name: string, description: string,
-        protected acronym: string = "",
-        requiredTelemetry: TelemetryType[] = []) {
-        super(name, description, requiredTelemetry);
-    }
-
-    displayInfo(): void {
-        console.log(`name: ${this.name}, acronym: ${this.acronym}, description: ${this.description}, value: ${this._value}`);
-    }
-}
-
-export class NUUMetric extends UXMetric {
+export class NUUMetric extends Metric {
     _value: number = 0;
 
     constructor(
         private _nbSessions: number = 1,
     ) {
-        super("Number of Unique Users", "Number of distinct users using an application", "NUU", [TelemetryType.TRACING]);
+        super("Number of Unique Users", "Number of distinct users using an application", "NUU");
     }
 
     get nbSessions(): number{
@@ -75,7 +49,7 @@ export class NUUMetric extends UXMetric {
     
 }
 
-export class UIFMetric extends UXMetric {
+export class UIFMetric extends Metric {
     _value: number = 0;
 
     constructor(
@@ -83,7 +57,7 @@ export class UIFMetric extends UXMetric {
         private _nbSessions: number = 1,
         private _selectedEvents: UserInteractionEvent[] = [],
     ) {
-        super("User Interaction Frequency", "How frequently users interact with the software during a typical session", "UIF", [TelemetryType.TRACING]);
+        super("User Interaction Frequency", "How frequently users interact with the software during a typical session", "UIF");
     }
 
     get totalInteractions(): number{

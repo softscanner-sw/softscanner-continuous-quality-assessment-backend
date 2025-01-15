@@ -1,25 +1,25 @@
-import { Characteristic} from "../characteristics/characteristics-core";
+import { CompositeGoal, Goal} from "../goals/goals-core";
 
 /**
- * Represents a software quality model, containing a set of characteristics.
+ * Represents a software quality model, containing a set of goals.
  */
 export class QualityModel {
     /**
      * Initializes a new instance of the QualityModel class.
      * @param _name The name of the quality model (e.g., "ISO/IEC 25010 (2023)").
-     * @param _characteristics An array of Characteristic instances associated with this model.
+     * @param _goals An array of Goal instances associated with this model.
      */
     constructor(
         private _name: string,
         private _version: string,
-        private _characteristics: Characteristic[],
+        private _goals: Goal[],
         /**
          * Indicates the primary focus or application domain of the quality model
          */
         private _purpose: string,
         /**
          * A high-level overview or reference to the methodology used 
-         * for assessing characteristics based on the model.
+         * for assessing goals based on the model.
          * This could be a URL to a document or a brief description.
          */
         private _assessmentMethodology?: string,
@@ -58,122 +58,86 @@ export class QualityModel {
         this._assessmentMethodology = assessmentMethodology;
     }
     
-    public get characteristics() : Characteristic[] {
-        return this._characteristics;
+    public get goals() : Goal[] {
+        return this._goals;
     }
 
-    public set characteristics(characteristics: Characteristic[]){
-        this._characteristics = characteristics;
+    public set goals(goals: Goal[]){
+        this._goals = goals;
     }
 
     // Utility methods
     /**
-     * Adds a new characteristic to the quality model.
-     * @param characteristic The Characteristic instance to be added.
+     * Adds a new goal to the quality model.
+     * @param goal The Goal instance to be added.
      */
-    addCharacteristic(characteristic: Characteristic): void {
-        characteristic.model = this;
-        this._characteristics.push(characteristic);
+    addGoal(goal: Goal): void {
+        this._goals.push(goal);
     }
 
     /**
-     * Adds a sub-characteristic for a given characteristic in the model.
-     * @param subCharacteristic The sub-characteristic to be added.
-     * @param parent The parent characteristic.
+     * Adds a sub-goal for a given goal in the model.
+     * @param subGoal The sub-goal to be added.
+     * @param parent The parent goal.
      */
-    addSubCharacteristic(subCharacteristic: Characteristic, parent: Characteristic): void {
-        subCharacteristic.model = this;
-        parent.addCharacteristic(subCharacteristic);
+    addSubGoal(subGoal: Goal, parent: CompositeGoal): void {
+        parent.addGoal(subGoal);
     }
 
     /**
-     * Finds and returns a characteristic by its name.
-     * @param characteristicName The name of the characteristic to find.
-     * @returns The Characteristic instance if found, or undefined.
+     * Finds and returns a goal by its name.
+     * @param goalName The name of the goal to find.
+     * @returns The Goal instance if found, or undefined.
      */
-    getCharacteristicByName(characteristicName: string): Characteristic | undefined {
-        return this._characteristics.find(char => char.name === characteristicName);
+    getGoalByName(goalName: string): Goal | undefined {
+        return this._goals.find(goal => goal.name === goalName);
     }
 
     /**
-     * Finds and returns a sub-characteristic by its name for the given characteristic in the model.
-     * @param subCharacteristicName The name of the sub-characteristic to get.
-     * @param parent The parent characteristic of the sub-characteristic to get
-     * @returns The Characteristic instance if found, or undefined.
+     * Checks if a goal exists for this model by name.
+     * @param goalName the name of the goal to check
+     * @returns true if the goal with the given name is found, false otherwise
      */
-    getSubCharacteristicByName(subCharacteristicName: string, parent: Characteristic): Characteristic | undefined {
-        return this._characteristics.find(char => char.name === subCharacteristicName);
+    hasGoal(goalName: string): boolean {
+        return this._goals.some(goal => goal.name === goalName);
     }
 
     /**
-     * Checks if a characteristic exists for this model by name.
-     * @param characteristicName the name of the characteristic to check
-     * @returns true if the characteristic with the given name is found, false otherwise
+     * Verifies the existence of a sub-goal by its name in the model.
+     * @param goalName The name of the sub-goal to check.
+     * @returns true if the sub-goal exists, false otherwise.
      */
-    hasCharacteristic(characteristicName: string): boolean {
-        return this._characteristics.some(char => char.name === characteristicName);
+    hasSubGoal(goalName: string): boolean {
+        return this.goals.some(goal => goal instanceof CompositeGoal && goal.hasGoal(goalName));
     }
 
     /**
-     * Checks if a parent characteristic in this model has a sub-characteristic with the provided name.
-     * @param subCharacteristicName the name of the sub-characteristic to check
-     * @param parent the parent characteristic of the sub-characteristic to check
-     * @returns true if the sub-characteristic with the provided name is found for the parent, false otherwise
+     * Removes a goal from this model by name.
+     * @param goalName the name of the goal to remove from this model
      */
-    hasSubCharacteristicForParent(subCharacteristicName: string, parent: Characteristic): boolean {
-        return parent.hasCharacteristic(subCharacteristicName);
+    removeGoal(goalName: string): void {
+        let goal = this.getGoalByName(goalName);
+        if (goal)
+            this._goals = this._goals.filter(g => g.name !== goalName);
     }
 
     /**
-     * Verifies the existence of a sub-characteristic by its name in the model.
-     * @param characteristicName The name of the sub-characteristic to check.
-     * @returns true if the sub-characteristic exists, false otherwise.
+     * Clears all goals for this model
      */
-    hasSubCharacteristic(characteristicName: string): boolean {
-        return this.characteristics.some(char => char.hasCharacteristic(characteristicName));
+    clearGoals(): void {
+        this._goals = [];
     }
 
     /**
-     * Removes a characteristic from this model by name.
-     * @param characteristicName the name of the characteristic to remove from this model
+     * Clears all sub-goals for the provided parent goal in this model
+     * @param parent the parent goal to clear from its sub-goals
      */
-    removeCharacteristic(characteristicName: string): void {
-        let characteristic = this.getCharacteristicByName(characteristicName);
-        if (characteristic){
-            characteristic.model = undefined;
-            this._characteristics = this._characteristics.filter(char => char.name !== characteristicName);
-        }
+    clearSubGoals(parent: CompositeGoal){
+        parent.clearGoals();
     }
 
     /**
-     * Removes a sub-characteristic by its name for the provided parent characteristic in this model.
-     * @param subCharacteristicName the name of the sub-characteristic to remove for the provided parent characteristic in this model
-     */
-    removeSubCharacteristic(subCharacteristicName: string, parent: Characteristic): void {
-        let subCharacteristic = this.getSubCharacteristicByName(subCharacteristicName, parent);
-        if (subCharacteristic){
-            subCharacteristic.model = undefined;
-            parent.removeCharacteristic(subCharacteristicName);
-        }
-    }
-
-    /**
-     * Clears all characteristics for this model
-     */
-    clearCharacteristics(): void {
-        this._characteristics = [];
-    }
-
-    /**
-     * Clears all sub-characteristics for the provided parent characteristic in this model
-     * @param parent the parent characteristic to clear from its sub-characteristics
-     */
-    clearSubCharacteristics(parent: Characteristic){
-        parent.clearCharacteristics();
-    }
-
-    /**
-     * Displays information about the quality model, including its characteristics
+     * Displays information about the quality model, including its goals
      * and their hierarchy.
      */
     displayInfo(): void {
@@ -182,6 +146,6 @@ export class QualityModel {
             console.log(`Purpose: ${this.purpose}`);
         if (this.assessmentMethodology)
             console.log(`Assessment Methodology: ${this.assessmentMethodology}`);
-        this.characteristics.forEach(char => char.displayInfo());
+        this.goals.forEach(goal => goal.displayInfo());
     }
 }

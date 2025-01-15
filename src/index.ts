@@ -1,14 +1,11 @@
 import { ApplicationMetadata } from './core/application-core';
-import { CharacteristicsSelector } from './core/characteristics/characteristics-selection';
 import { FileTelemetryDataReader, MetricsComputer } from './core/computation/metrics-computation';
-import { TelemetryExportDestinationType, TelemetryExportProtocol, TelemetryType, UserInteractionEvent } from './core/instrumentation/instrumentation-core';
-import { QualityModelManager } from './core/model/model-management';
-import { UserGoal } from './core/users-core';
+import { TelemetryExportDestinationType, TelemetryType, UserInteractionEvent } from './core/instrumentation/instrumentation-core';
+import { NUUMetric, UIFMetric } from './core/metrics/user-engagement/metrics-user-engagement';
+import { SSQMM } from './core/model/model-mapping';
 import { AngularInstrumentationBundleInjector } from './injection/angular/angular-injection';
 import { OpenTelemetryInstrumentationConfig, OpenTelemetryInstrumentationGenerator, OpenTelemetryUserInteractionEventsConfig } from './instrumentation/opentelemetry/opentelemetry-instrumentation';
 import { OpenTelemetryAutomaticTracingOptions } from './instrumentation/opentelemetry/strategies/opentelemetry-instrumentation-strategy-tracing';
-import { NUUMetric, UIFMetric } from './metrics/ux/ux-metrics';
-import { UXMetricsMapper } from './metrics/ux/ux-metrics-mappers';
 
 import { spawn } from 'child_process';
 import * as path from "path";
@@ -56,45 +53,11 @@ async function testCoreModules() {
     appMetadata.displayInfo();
     console.log("");
 
-    // Select user goal
-    const userGoal = new UserGoal("Improve user engagement quality in web application");
-
-    // Display selected user goal
-    userGoal.displayGoal();
-    console.log("");
-
-    // Instantiate QualityModelManager with the userGoal
-    const qmm = new QualityModelManager(appMetadata, userGoal);
+    // Instantiate SSQMM
+    const ssqmm = new SSQMM();
 
     // Select the appropriate Quality Model based on the user goal
-    qmm.selectQualityModelForGoal();
-
-    // Filter characteristics based on the user goal
-    // qmm.filterCharacteristicsForGoal();
-    // Create a selector to capture display (sub-)characteristics to user and capture his selection
-    const charSelector = new CharacteristicsSelector(qmm);
-    charSelector.displayAvailableCharacteristics();
-    console.log("");
-
-    // User chooses the (sub-)characteristics (CLI or GUI)
-    // @TODO
-    // Assume the user has chosen the Interaction Capability and User Engagement (sub-)characteristics
-    charSelector.propagateUserSelection(['Interaction Capability', 'User Engagement']);
-
-    // Display selected characteristics
-    charSelector.displaySelectedCharacteristics();
-
-    // Instantiate UXMetricsMapper with a CharacteristicsSelector instance
-    const uxMetricsMapper = new UXMetricsMapper(charSelector);
-
-    // Map selected characteristics to UX Metrics
-    uxMetricsMapper.map();
-
-    // Display the mapped UX Metrics
-    console.log("Mapped UX Metrics:");
-    uxMetricsMapper.selectedMetrics.forEach(metric => {
-        metric.displayInfo();
-    });
+    ssqmm.qualityModel.displayInfo();
 
     // Define OpenTelemetry instrumentation configuration
     const telemetryConfig = new OpenTelemetryInstrumentationConfig(
@@ -130,23 +93,23 @@ async function testCoreModules() {
         )
     );
 
-    // Create the OpenTelemetryInstrumentationGenerator
-    const instrumentationGenerator = new OpenTelemetryInstrumentationGenerator(appMetadata, uxMetricsMapper.selectedMetrics, telemetryConfig);
+    // // Create the OpenTelemetryInstrumentationGenerator
+    // const instrumentationGenerator = new OpenTelemetryInstrumentationGenerator(appMetadata, uxMetricsMapper.selectedMetrics, telemetryConfig);
 
-    // Generate instrumentation files
-    await instrumentationGenerator.generateInstrumentationFiles();
+    // // Generate instrumentation files
+    // await instrumentationGenerator.generateInstrumentationFiles();
 
-    // Bundle instrumentation files
-    await instrumentationGenerator.generateInstrumentationBundle();
+    // // Bundle instrumentation files
+    // await instrumentationGenerator.generateInstrumentationBundle();
 
-    // Get generated bundle
-    const bundle = instrumentationGenerator.getInstrumentationBundle();
+    // // Get generated bundle
+    // const bundle = instrumentationGenerator.getInstrumentationBundle();
 
-    // Create the bundle injector
-    const bundleInjector = new AngularInstrumentationBundleInjector(appMetadata, bundle);
+    // // Create the bundle injector
+    // const bundleInjector = new AngularInstrumentationBundleInjector(appMetadata, bundle);
 
-    // Inject the bundle in the target application
-    await bundleInjector.process();
+    // // Inject the bundle in the target application
+    // await bundleInjector.process();
 }
 
 async function computeMetrics(telemetryDataFilePath: string) {
