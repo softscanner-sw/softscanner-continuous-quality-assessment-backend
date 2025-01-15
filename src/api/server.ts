@@ -26,8 +26,16 @@ app.get('/api/quality-model', (req: Request, res: Response) => {
 /**
  * Endpoint to receive selected goals and application metadata
  */
-app.post('/api/quality-assessment', (req: Request, res: Response) => {
+app.post('/api/quality-assessment', async (req: Request, res: Response) => {
     const { metadata, selectedGoals } = req.body;
+
+    // console.log('Received Raw Metadata:', JSON.stringify(metadata, null, 2));
+
+    // Ensure the metadata object is properly structured
+    if (!metadata || !selectedGoals) {
+        res.status(400).send({ error: 'Invalid request payload' });
+        return;
+    }
 
     // Deserialize application metadata
     const appMetadata = new ApplicationMetadata(
@@ -38,13 +46,31 @@ app.post('/api/quality-assessment', (req: Request, res: Response) => {
         metadata.url
     );
 
-    // Perform quality assessment with the received data
+    // Log received data
     console.log('Received Application Metadata:', appMetadata);
     console.log('Received Selected Goals:', selectedGoals);
 
-    // Here you can trigger your instrumentation and bundle injection processes
-    res.status(200).send({ message: 'Quality assessment started successfully!' });
+    // Perform quality assessment with the received data
+    try {
+        await triggerInstrumentation(appMetadata, selectedGoals);
+        res.status(200).send({ message: 'Quality assessment started successfully!' });
+    } catch (error) {
+        console.error('Error during assessment:', error);
+        res.status(500).send({ error: 'Failed to start quality assessment' });
+    }
 });
+
+/**
+ * Function to trigger instrumentation and bundle injection
+ */
+async function triggerInstrumentation(metadata: ApplicationMetadata, goals: string[]) {
+    // Placeholder for your existing instrumentation logic
+    console.log('Triggering instrumentation process...');
+    console.log('Application Name:', metadata.name);
+    console.log('Selected Goals:', goals);
+
+    // Add your bundle injection logic here
+}
 
 // Start the server
 app.listen(port, () => {

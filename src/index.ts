@@ -93,23 +93,23 @@ async function testCoreModules() {
         )
     );
 
-    // // Create the OpenTelemetryInstrumentationGenerator
-    // const instrumentationGenerator = new OpenTelemetryInstrumentationGenerator(appMetadata, uxMetricsMapper.selectedMetrics, telemetryConfig);
+    // Create the OpenTelemetryInstrumentationGenerator
+    const instrumentationGenerator = new OpenTelemetryInstrumentationGenerator(appMetadata, uxMetricsMapper.selectedMetrics, telemetryConfig);
 
-    // // Generate instrumentation files
-    // await instrumentationGenerator.generateInstrumentationFiles();
+    // Generate instrumentation files
+    await instrumentationGenerator.generateInstrumentationFiles();
 
-    // // Bundle instrumentation files
-    // await instrumentationGenerator.generateInstrumentationBundle();
+    // Bundle instrumentation files
+    await instrumentationGenerator.generateInstrumentationBundle();
 
-    // // Get generated bundle
-    // const bundle = instrumentationGenerator.getInstrumentationBundle();
+    // Get generated bundle
+    const bundle = instrumentationGenerator.getInstrumentationBundle();
 
-    // // Create the bundle injector
-    // const bundleInjector = new AngularInstrumentationBundleInjector(appMetadata, bundle);
+    // Create the bundle injector
+    const bundleInjector = new AngularInstrumentationBundleInjector(appMetadata, bundle);
 
-    // // Inject the bundle in the target application
-    // await bundleInjector.process();
+    // Inject the bundle in the target application
+    await bundleInjector.process();
 }
 
 async function computeMetrics(telemetryDataFilePath: string) {
