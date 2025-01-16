@@ -1,8 +1,8 @@
-import express, { Request, Response } from 'express';
 import cors from 'cors';
-import { SSQMM } from '../core/model/model-mapping';
-import { ApplicationMetadata } from '../core/application-core';
+import { spawn } from 'child_process';
+import express, { Request, Response } from 'express';
 import { QualityAssessmentService } from '../assessment/quality-assessment-service';
+import { ApplicationMetadata } from '../core/application-core';
 
 // Initialize the app
 const app = express();
@@ -17,6 +17,27 @@ app.use(express.json());
 // Create an instance of the QualityAssessmentService
 const qualityAssessmentService = new QualityAssessmentService();
 
+// Function to start the WebSocket telemetry collector
+function startTelemetryCollector() {
+    console.log('Starting WebSocket telemetry collector...');
+
+    // Launch the collector as a separate process
+    const collectorProcess = spawn('node', ['dist/api/websockets-server.js'], {
+        stdio: 'inherit', // This pipes the output to the main console
+    });
+
+    // Handle collector process events
+    collectorProcess.on('error', (error) => {
+        console.error('Error starting telemetry collector:', error);
+    });
+
+    collectorProcess.on('close', (code) => {
+        console.log(`Collector: WebSocketTelemetryCollector process exited with code ${code}`);
+    });
+
+    console.log('Collector: WebSocket telemetry collector running on ws://localhost:8081');
+}
+
 /**
  * Endpoint to retrieve the quality model and goals
  */
@@ -27,7 +48,7 @@ app.get('/api/quality-model', (req: Request, res: Response) => {
 /**
  * Endpoint to receive selected goals and application metadata
  */
-app.post('/api/quality-assessment', async (req: Request, res: Response) => {
+app.post('/api/instrumentation', async (req: Request, res: Response) => {
     const { metadata, selectedGoals } = req.body;
 
     // console.log('Received Raw Metadata:', JSON.stringify(metadata, null, 2));
@@ -54,11 +75,33 @@ app.post('/api/quality-assessment', async (req: Request, res: Response) => {
     // Perform quality assessment with the received data
     try {
         await qualityAssessmentService.performQualityAssessment(appMetadata, selectedGoals);
-        res.status(200).send({ message: 'Quality assessment started successfully!' });
+
+         // Start the telemetry collector after instrumentation is complete
+         startTelemetryCollector();
+
+        res.status(200).send({ message: 'Instrumentation completed successfully!' });
     } catch (error) {
-        console.error('Error during assessment:', error);
-        res.status(500).send({ error: 'Failed to start quality assessment' });
+        console.error('Error during instrumentation:', error);
+        res.status(500).send({ error: 'Failed to start instrumentation' });
     }
+});
+
+/**
+ * New endpoint to stream progress updates via Server-Sent Events (SSE)
+ */
+app.get('/api/progress', (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    qualityAssessmentService.onProgress((message) => {
+        res.write(`data: ${JSON.stringify({ message })}\n\n`);
+    });
+
+    req.on('close', () => {
+        console.log('Client disconnected from progress stream');
+        res.end();
+    });
 });
 
 // Start the server

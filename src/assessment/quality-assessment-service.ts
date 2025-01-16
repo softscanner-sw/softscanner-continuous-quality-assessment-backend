@@ -12,6 +12,7 @@ export class QualityAssessmentService {
     private _ssqmm: SSQMM;
     private _instrumentationManager: InstrumentationManager;
     private _bundleInjector: BundleInjector;
+    private progressListeners: ((message: string) => void)[] = [];
 
     constructor() {
         this._ssqmm = new SSQMM();
@@ -23,6 +24,14 @@ export class QualityAssessmentService {
         return this._ssqmm;
     }
 
+    public onProgress(listener: (message: string) => void) {
+        this.progressListeners.push(listener);
+    }
+
+    private notifyProgress(message: string) {
+        this.progressListeners.forEach(listener => listener(message));
+    }
+
     /**
      * Triggers the entire quality assessment process, from mapping goals to generating and injecting instrumentation.
      * @param appMetadata The metadata of the application being assessed.
@@ -30,6 +39,7 @@ export class QualityAssessmentService {
      */
     public async performQualityAssessment(appMetadata: ApplicationMetadata, selectedGoals: string[]): Promise<void> {
         console.log('Starting quality assessment...');
+        this.notifyProgress('Starting quality assessment...');
 
         // Map the selected goals to metrics using SSQMM
         const metrics = this.extractRequiredMetrics(this._ssqmm.goals, selectedGoals);
@@ -41,12 +51,15 @@ export class QualityAssessmentService {
             throw new Error('No metrics found for the selected goals.');
 
         // Generate instrumentation files based on the mapped metrics and retrieve the generated bundle
+        this.notifyProgress('Generating instrumentation files...');
         const bundle = await this._instrumentationManager.generateInstrumentation(appMetadata, metrics);
 
         // Inject the retrieved bundle into the project
+        this.notifyProgress('Injecting instrumentation bundle...');
         await this._bundleInjector.injectBundle(appMetadata, bundle);
 
-        console.log('Quality assessment completed successfully!');
+        this.notifyProgress('Instrumentation bundle injection completed successfully!');
+        console.log('Instrumentation bundle injection completed successfully!');
     }
 
     extractRequiredMetrics(goals: Goal[], selectedGoals: string[]): Metric[] {

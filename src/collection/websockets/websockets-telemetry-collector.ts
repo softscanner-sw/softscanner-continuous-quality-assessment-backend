@@ -28,28 +28,28 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
      */
     private setupWebSocketServer(): void {
         this.wss.on('connection', ws => {
-            console.log('Client connected');
+            console.log('Collector: Client connected');
 
             ws.on('message', async message => {
                 await this.collectTelemetry(message);
             });
 
             ws.on('close', async () => {
-                console.log('Client disconnected');
+                console.log('Collector: Client disconnected');
                 try {
                     await this.handleRetry(() => this.flushData());
-                    console.log('Telemetry data flushed and stored.');
+                    console.log('Collector: Telemetry data flushed and stored.');
                 } catch (error){
-                    console.error('Failed to flush and store telemetry data:', error);
+                    console.error('Collector: Failed to flush and store telemetry data:', error);
                 }
             });
 
             ws.on('error', error => {
-                console.error(`WebSocket error: ${error}`);
+                console.error(`Collector: WebSocket error: ${error}`);
             });
         });
 
-        console.log(`WebSocket server started on ws://localhost:${this.port}`);
+        console.log(`Collector: WebSocket server started on ws://localhost:${this.port}`);
     }
 
     /**
@@ -65,7 +65,7 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
                 this.telemetryData.push(telemetryObject);
             });
         } catch (error) {
-            console.error('Error processing telemetry data:', error);
+            console.error('Collector: Error processing telemetry data:', error);
         }
     }
 

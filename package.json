@@ -8,6 +8,7 @@
     "clean": "rimraf dist",
     "clean_assets": "rimraf assets",
     "start": "npm run build && node dist/api/server.js",
+    "start-collector": "node dist/api/websockets-server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint 'src/**/*.ts' --fix"
   },

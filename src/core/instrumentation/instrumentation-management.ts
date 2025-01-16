@@ -2,7 +2,7 @@ import { OpenTelemetryInstrumentationConfig, OpenTelemetryInstrumentationGenerat
 import { OpenTelemetryAutomaticTracingOptions } from "../../instrumentation/opentelemetry/strategies/opentelemetry-instrumentation-strategy-tracing";
 import { ApplicationMetadata } from "../application-core";
 import { Metric } from "../metrics/metrics-core";
-import { InstrumentationBundle, TelemetryExportDestinationType, TelemetryType, UserInteractionEvent } from "./instrumentation-core";
+import { InstrumentationBundle, TelemetryExportDestinationType, TelemetryExportProtocol, TelemetryType, UserInteractionEvent } from "./instrumentation-core";
 
 
 /**
@@ -25,7 +25,11 @@ export class InstrumentationManager {
         // Define the OpenTelemetry configuration
         const telemetryConfig = new OpenTelemetryInstrumentationConfig(
             telemetryTypes,
-            [{ type: TelemetryExportDestinationType.CONSOLE }],
+            [{
+                type: TelemetryExportDestinationType.LOCAL_COLLECTOR,
+                    protocol: TelemetryExportProtocol.WEB_SOCKETS,
+                    url: 'ws://localhost:8081'
+            }],
             new OpenTelemetryAutomaticTracingOptions({
                 enabled: true,
                 events: UserInteractionEvent.getMainEvents()
