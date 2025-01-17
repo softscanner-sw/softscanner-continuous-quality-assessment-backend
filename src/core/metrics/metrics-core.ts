@@ -1,4 +1,5 @@
-import { TelemetryType } from "../instrumentation/instrumentation-core";
+import { Goal } from "../goals/goals";
+import { TelemetryType } from "../telemetry/telemetry";
 
 /**
  * Represents a generic metric with basic properties and behaviors. This class
@@ -17,7 +18,7 @@ export abstract class Metric {
         protected _name: string,
         protected _description: string,
         protected _acronym: string = "",
-        protected _requiredTelemetry: TelemetryType[] = []){
+        protected _requiredTelemetry: TelemetryType[] = []) {
     }
 
     get name(): string {
@@ -45,7 +46,7 @@ export abstract class Metric {
      * @param telemetryType The type of telemetry to check.
      * @returns true if the telemetry type is required, false otherwise.
      */
-    hasRequiredTelemetry(telemetryType: TelemetryType): boolean{
+    hasRequiredTelemetry(telemetryType: TelemetryType): boolean {
         return this._requiredTelemetry.includes(telemetryType);
     }
 
@@ -59,7 +60,7 @@ export abstract class Metric {
     /**
      * Displays information about the metric.
      */
-    displayInfo(): void{
+    displayInfo(): void {
         console.log(`name: ${this._name}, acronym: ${this._acronym}, description: ${this._description}, value: ${this.computeValue()}`);
         console.log(`required telemetry: ${this._requiredTelemetry}`);
     }
@@ -73,4 +74,8 @@ export abstract class Metric {
      * Must be implemented by subclasses.
      */
     abstract computeValue(data?: any[]): any;
+}
+
+export interface GoalMapper {
+    map(goal: Goal): any
 }

@@ -27,7 +27,7 @@ export class FileTelemetryDataReader implements TelemetryDataReader {
                 lines.push(data);
             else
                 console.warn("File Telemetry Reader: Invalid telemetry data:", data);
-            
+
             lines.push(JSON.parse(line));
         }
         return lines;

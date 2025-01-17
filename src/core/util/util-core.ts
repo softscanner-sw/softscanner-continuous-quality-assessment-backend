@@ -1,4 +1,3 @@
-import { EventEmitter } from "stream";
 
 /**
  * A utility class providing static methods for common operations such as
@@ -26,19 +25,7 @@ export class Utils {
      * @param enumValue The enum string value to be converted.
      * @returns A lowercase, separator-free string representation of the enum value.
      */
-    public static convertEnumValueToLowercaseWithNoSeparator(enumValue: string){
+    public static convertEnumValueToLowercaseWithNoSeparator(enumValue: string) {
         return enumValue.toLowerCase().replace(/_/g, '');
-    }
-}
-
-export class ProgressTracker {
-    private eventEmitter = new EventEmitter();
-
-    onProgress(listener: (message: string) => void) {
-        this.eventEmitter.on('progress', listener);
-    }
-
-    notifyProgress(message: string) {
-        this.eventEmitter.emit('progress', message);
     }
 }

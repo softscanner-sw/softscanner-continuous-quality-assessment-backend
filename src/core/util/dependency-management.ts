@@ -38,7 +38,7 @@ export class DependencyManager {
      * @param packageName The name of the package to check.
      * @returns true if the package is installed, false otherwise.
      */
-    static isDependencyInstalled(packageName: string): boolean{
+    static isDependencyInstalled(packageName: string): boolean {
         const nodeModulesPath = path.join(process.cwd(), 'node_modules', packageName);
         const packageJsonPath = path.join(process.cwd(), 'package.json');
 

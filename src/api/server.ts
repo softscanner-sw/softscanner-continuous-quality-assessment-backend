@@ -1,11 +1,11 @@
 import cors from 'cors';
 import express, { Request, Response } from 'express';
-import { ApplicationMetadata } from '../core/application-core';
-import { TelemetryService } from '../core/collection/telemetry-service';
-import { InstrumentationService } from '../core/instrumentation/instrumentation-service';
-import { MetricsService } from '../core/metrics/metrics-service';
-import { QualityModelService } from '../core/model/model-service';
-import { ProgressTracker } from '../core/util/util-core';
+import { ApplicationMetadata } from '../core/application/application-metadata';
+import { InstrumentationService } from '../services/instrumentation.service';
+import { MetricsService } from '../services/metrics.service';
+import { ProgressTracker } from '../services/progress-tracker.service';
+import { QualityModelService } from '../services/quality-model.service';
+import { TelemetryService } from '../services/telemetry.service';
 
 // Initialize the app
 const app = express();
@@ -66,7 +66,7 @@ app.post('/api/assessment', async (req: Request, res: Response) => {
     console.log('Server: Received Selected Goals:', selectedGoals);
 
     try {
-         // Trigger instrumentation
+        // Trigger instrumentation
         const bundleName = await instrumentationService.instrument(appMetadata, selectedGoals);
 
         // setup telemetry collector

@@ -1,6 +1,8 @@
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import * as path from "path";
-import { ApplicationMetadata } from "../application-core";
+import { ApplicationMetadata } from "../application/application-metadata";
 import { Metric } from "../metrics/metrics-core";
+import { TelemetryConfig, TelemetryType } from "../telemetry/telemetry";
 import { DependencyManager } from "../util/dependency-management";
 
 /**
@@ -36,7 +38,7 @@ export interface InstrumentationBundle {
  * Abstract class that provides a base for instrumentation bundles.
  * It encapsulates common properties and getters for subclasses.
  */
-export abstract class AbstractInstrumentationBundle implements InstrumentationBundle{
+export abstract class AbstractInstrumentationBundle implements InstrumentationBundle {
     constructor(
         protected _fileName: string,
         protected _instrumentationfiles: Instrumentation[] = [],
@@ -44,31 +46,31 @@ export abstract class AbstractInstrumentationBundle implements InstrumentationBu
         protected _parentPath?: string,
         protected _projectRootPath?: string,
         protected _creationDate?: string,
-    ){
+    ) {
 
     }
 
-    get fileName(){
+    get fileName() {
         return this._fileName;
     }
 
-    get path(){
+    get path() {
         return this._path;
     }
 
-    get parentPath(){
+    get parentPath() {
         return this._parentPath;
     }
 
-    get projectRootPath(){
+    get projectRootPath() {
         return this._projectRootPath;
     }
 
-    get creationDate(){
+    get creationDate() {
         return this._creationDate;
     }
 
-    get files(): Instrumentation[]{
+    get files(): Instrumentation[] {
         return this._instrumentationfiles;
     }
 }
@@ -78,186 +80,9 @@ export abstract class AbstractInstrumentationBundle implements InstrumentationBu
  * Useful as a fallback or placeholder configuration
  */
 export class DefaultInstrumentationBundle extends AbstractInstrumentationBundle {
-    constructor(){
+    constructor() {
         super('', [], '', '', '');
     }
-}
-
-/**
- * Enumerates the types of telemetry that can be collected.
- */
-export enum TelemetryType {
-    TRACING = 'tracing',
-    LOGGING = 'logging',
-    METRICS = 'metrics',
-}
-
-/**
- * Enumerates possible user interaction events that can be monitored and traced.
- */
-export enum UserInteractionEvent {
-    ABORT, ANIMATION_CANCEL, ANIMATION_END, ANIMATION_ITERATION, ANIMATION_START, AUX_CLICK, 
-    BLUR,
-    CAN_PLAY, CAN_PLAY_THROUGH, CHANGE, CLICK, CLOSE, CONTEXT_MENU, COPY, CUE_CHANGE, CUT, 
-    DBL_CLICK, DRAG, DRAG_END, DRAG_ENTER, DRAG_LEAVE, DRAG_OVER, DRAG_START, DROP, DURATION_CHANGE, 
-    EMPTIED, ENDED, ERROR, 
-    FOCUS, FOCUS_IN, FOCUS_OUT, FULLSCREEN_CHANGE, FULLSCREEN_ERROR, 
-    GOT_POINTER_CAPTURE, 
-    INPUT, INVALID, 
-    KEY_DOWN, KEY_PRESS, KEY_UP, 
-    LOAD, LOADED_DATA, LOADED_METADATA, LOAD_START, LOST_POINTER_CAPTURE, 
-    MOUSE_DOWN, MOUSE_ENTER, MOUSE_LEAVE, MOUSE_MOVE, MOUSE_OUT, MOUSE_OVER, MOUSE_UP, 
-    PASTE, PAUSE, PLAY, PLAYING, POINTER_CANCEL, POINTER_DOWN, POINTER_ENTER, POINTER_LEAVE,
-    POINTER_MOVE, POINTER_OUT, POINTER_OVER, POINTER_UP, PROGRESS, 
-    RATE_CHANGE, RESET, RESIZE, 
-    SCROLL, SECURITY_POLICY_VIOLATION, 
-    SEEKED, SEEKING, SELECT, SELECTION_CHANGE, SELECT_START, STALLED, SUBMIT, SUSPEND, 
-    TIME_UPDATE, TOGGLE, TOUCH_CANCEL, TOUCH_END, TOUCH_MOVE, TOUCH_START, TRANSITION_CANCEL,
-    TRANSITION_END, TRANSITION_RUN, TRANSITION_START, 
-    VOLUME_CHANGE, 
-    WAITING, WHEEL
-}
-
-export namespace UserInteractionEvent {
-    export function getAllEvents(): UserInteractionEvent[]{
-        return [
-            UserInteractionEvent.ABORT,
-            UserInteractionEvent.ANIMATION_CANCEL,
-            UserInteractionEvent.ANIMATION_END,
-            UserInteractionEvent.ANIMATION_ITERATION,
-            UserInteractionEvent.ANIMATION_START,
-            UserInteractionEvent.AUX_CLICK,
-            UserInteractionEvent.BLUR,
-            UserInteractionEvent.CAN_PLAY,
-            UserInteractionEvent.CAN_PLAY_THROUGH,
-            UserInteractionEvent.CHANGE,
-            UserInteractionEvent.CLICK,
-            UserInteractionEvent.CLOSE,
-            UserInteractionEvent.CONTEXT_MENU,
-            UserInteractionEvent.COPY,
-            UserInteractionEvent.CUE_CHANGE,
-            UserInteractionEvent.CUT,
-            UserInteractionEvent.DBL_CLICK,
-            UserInteractionEvent.DRAG,
-            UserInteractionEvent.DRAG_END,
-            UserInteractionEvent.DRAG_ENTER,
-            UserInteractionEvent.DRAG_LEAVE,
-            UserInteractionEvent.DRAG_OVER,
-            UserInteractionEvent.DRAG_START,
-            UserInteractionEvent.DROP,
-            UserInteractionEvent.DURATION_CHANGE,
-            UserInteractionEvent.EMPTIED,
-            UserInteractionEvent.ENDED,
-            UserInteractionEvent.ERROR,
-            UserInteractionEvent.FOCUS,
-            UserInteractionEvent.FOCUS_IN,
-            UserInteractionEvent.FOCUS_OUT,
-            UserInteractionEvent.FULLSCREEN_CHANGE,
-            UserInteractionEvent.FULLSCREEN_ERROR,
-            UserInteractionEvent.GOT_POINTER_CAPTURE,
-            UserInteractionEvent.INPUT,
-            UserInteractionEvent.INVALID,
-            UserInteractionEvent.KEY_DOWN,
-            UserInteractionEvent.KEY_PRESS,
-            UserInteractionEvent.KEY_UP,
-            UserInteractionEvent.LOAD,
-            UserInteractionEvent.LOADED_DATA,
-            UserInteractionEvent.LOADED_METADATA,
-            UserInteractionEvent.LOAD_START,
-            UserInteractionEvent.LOST_POINTER_CAPTURE,
-            UserInteractionEvent.MOUSE_DOWN,
-            UserInteractionEvent.MOUSE_ENTER,
-            UserInteractionEvent.MOUSE_LEAVE,
-            UserInteractionEvent.MOUSE_MOVE,
-            UserInteractionEvent.MOUSE_OUT,
-            UserInteractionEvent.MOUSE_OVER,
-            UserInteractionEvent.MOUSE_UP,
-            UserInteractionEvent.PASTE,
-            UserInteractionEvent.PAUSE,
-            UserInteractionEvent.PLAY,
-            UserInteractionEvent.PLAYING,
-            UserInteractionEvent.POINTER_CANCEL,
-            UserInteractionEvent.POINTER_DOWN,
-            UserInteractionEvent.POINTER_ENTER,
-            UserInteractionEvent.POINTER_LEAVE,
-            UserInteractionEvent.POINTER_MOVE,
-            UserInteractionEvent.POINTER_OUT,
-            UserInteractionEvent.POINTER_OVER,
-            UserInteractionEvent.POINTER_UP,
-            UserInteractionEvent.PROGRESS,
-            UserInteractionEvent.RATE_CHANGE,
-            UserInteractionEvent.RESET,
-            UserInteractionEvent.RESIZE,
-            UserInteractionEvent.SCROLL,
-            UserInteractionEvent.SECURITY_POLICY_VIOLATION,
-            UserInteractionEvent.SEEKED,
-            UserInteractionEvent.SEEKING,
-            UserInteractionEvent.SELECT,
-            UserInteractionEvent.SELECTION_CHANGE,
-            UserInteractionEvent.SELECT_START,
-            UserInteractionEvent.STALLED,
-            UserInteractionEvent.SUBMIT,
-            UserInteractionEvent.SUSPEND,
-            UserInteractionEvent.TIME_UPDATE,
-            UserInteractionEvent.TOGGLE,
-            UserInteractionEvent.TOUCH_CANCEL,
-            UserInteractionEvent.TOUCH_END,
-            UserInteractionEvent.TOUCH_MOVE,
-            UserInteractionEvent.TOUCH_START,
-            UserInteractionEvent.TRANSITION_CANCEL,
-            UserInteractionEvent.TRANSITION_END,
-            UserInteractionEvent.TRANSITION_RUN,
-            UserInteractionEvent.TRANSITION_START,
-            UserInteractionEvent.VOLUME_CHANGE,
-            UserInteractionEvent.WAITING,
-            UserInteractionEvent.WHEEL
-        ];
-    }
-
-    export function getMainEvents(): UserInteractionEvent[]{
-        return [
-            UserInteractionEvent.CHANGE,
-            UserInteractionEvent.CLICK,
-            UserInteractionEvent.SELECT,
-            UserInteractionEvent.SUBMIT
-        ];
-    }
-}
-
-/**
- * Configuration interface for telemetry collection.
- * It allows specifying which types of telemetry to collect, and optionally, which user interaction events to monitor.
- */
-export interface TelemetryConfig {
-    telemetryTypes: TelemetryType[];
-    userInteractionEvents?: UserInteractionEvent[]; // Optional, only if user interaction events are to be monitored
-}
-
-/**
- * Enumerates the types of destinations where telemetry data can be exported.
- */
-export enum TelemetryExportDestinationType {
-    CONSOLE = 'console',
-    LOCAL_COLLECTOR = 'collector.local',
-    REMOTE_COLLECTOR = 'collector.remote',
-}
-
-/**
- * Enumerates the protocols that can be used for exporting telemetry data
- */
-export enum TelemetryExportProtocol{
-    OTLP = 'OTLP', // OpenTelemetry Protocol for telemetry data export.
-    WEB_SOCKETS = 'WebSockets', // WebSocket protocol for real-time telemetry data export.
-}
-
-/**
- * Defines the structure of a telemetry export destination.
- */
-export interface TelemetryExportDestination {
-    type: TelemetryExportDestinationType, // The type of the destination.
-    protocol?: TelemetryExportProtocol, // The protocol used for exporting data.
-    url?: string, // The URL of the destination.
-    port?: number // The port of the destination.
 }
 
 /**
@@ -289,27 +114,27 @@ export abstract class AbstractInstrumentationStrategy implements Instrumentation
 
     /* METHODS */
     // Getters for accessing strategy attributes.
-    get application(): ApplicationMetadata{
+    get application(): ApplicationMetadata {
         return this._application;
     }
 
-    get config(): TelemetryConfig{
+    get config(): TelemetryConfig {
         return this._config;
     }
 
-    get projectRootPath(): string{
+    get projectRootPath(): string {
         return this._projectRootPath;
     }
 
-    get srcPath(): string{
+    get srcPath(): string {
         return this._srcPath;
     }
 
-    get instrumentationFilesRootFolder(): string{
+    get instrumentationFilesRootFolder(): string {
         return this._instrumentationFilesRootFolder;
     }
 
-    get instrumentationBundleRootFolder(): string{
+    get instrumentationBundleRootFolder(): string {
         return this._instrumentationBundleRootFolder;
     }
 
@@ -323,7 +148,7 @@ export abstract class AbstractInstrumentationStrategy implements Instrumentation
  * Provides a default implementation for an instrumentation strategy.
  * Useful as a fallback or placeholder strategy.
  */
-export class DefaultInstrumentationStrategy implements InstrumentationStrategy{
+export class DefaultInstrumentationStrategy implements InstrumentationStrategy {
     public generateInstrumentationFiles(): Instrumentation[] {
         return [];
     }
@@ -348,14 +173,14 @@ export abstract class InstrumentationGenerator {
     constructor(
         protected application: ApplicationMetadata,
         protected metrics: Metric[] // obtained through a MetricsMapper instance
-    ){}
+    ) { }
 
     // Getters and setters for accessing and updating the instrumentation strategy.
-    get instrumentationStrategy(){
+    get instrumentationStrategy() {
         return this._instrumentationStrategy;
     }
 
-    set instrumentationStrategy(strategy: InstrumentationStrategy){
+    set instrumentationStrategy(strategy: InstrumentationStrategy) {
         this._instrumentationStrategy = strategy;
     }
 
@@ -364,7 +189,7 @@ export abstract class InstrumentationGenerator {
      * @param telemetryType The type of telemetry to check for.
      * @returns A boolean indicating if the specified telemetry type is required.
      */
-    public requiresTelemetryType(telemetryType: TelemetryType): boolean{
+    public requiresTelemetryType(telemetryType: TelemetryType): boolean {
         return this.metrics.some(metric => metric.hasRequiredTelemetry(telemetryType));
     }
 
@@ -373,7 +198,7 @@ export abstract class InstrumentationGenerator {
     }
 
     public async validateDependencies(): Promise<boolean> {
-        if(!DependencyManager.areDependenciesInstalled(this.instrumentationDependencies())){
+        if (!DependencyManager.areDependenciesInstalled(this.instrumentationDependencies())) {
             console.log("Some dependencies are missing. Attempting to install...");
             DependencyManager.installNPMDependencies(this.instrumentationDependencies());
             return DependencyManager.areDependenciesInstalled(this.instrumentationDependencies());
@@ -390,7 +215,7 @@ export abstract class InstrumentationGenerator {
         return this.instrumentations;
     }
 
-    public getInstrumentationBundle(): InstrumentationBundle{
+    public getInstrumentationBundle(): InstrumentationBundle {
         return this.instrumentationBundle;
     }
 
@@ -400,7 +225,7 @@ export abstract class InstrumentationGenerator {
      * @param from The module from which to import the elements.
      * @returns A string representing the import statement.
      */
-    public static generateImportFromStatement(imported: string, from: string){
+    public static generateImportFromStatement(imported: string, from: string) {
         return `import { ${imported} } from '${from}';`;
     }
 
@@ -409,7 +234,7 @@ export abstract class InstrumentationGenerator {
      * @param imported The module to import.
      * @returns A string representing the import statement without specifying individual elements.
      */
-    public static generateImportStatement(imported: string){
+    public static generateImportStatement(imported: string) {
         return `import "${imported}";`;
     }
 
@@ -429,4 +254,80 @@ export abstract class InstrumentationGenerator {
      * Must be implemented to bundle the generated instrumentation files into a single executable package.
      */
     public abstract generateInstrumentationBundle(): Promise<void>;
+}
+
+/**
+ * Abstract class to define a blueprint for bundle injection into different types of applications.
+ * It provides a structured process to inject an instrumentation bundle into a target application,
+ * accommodating for custom pre and post injection steps.
+ */
+export abstract class InstrumentationBundleInjector {
+
+    /**
+     * Constructor to initialize the bundle injector.
+     * @param application The target application metadata.
+     * @param bundle The generated instrumentation bundle.
+     * @param bundleDestinationParentPath Absolute path of the parent folder in the application where the bundle will be placed.
+     * @param targetHTMLPagePath Absolute path to the HTML page where the bundle will be injected.
+     */
+    constructor(
+        protected application: ApplicationMetadata, // the target application
+        protected bundle: InstrumentationBundle, // The generated instrumentation bundle.
+        protected bundleDestinationParentPath: string = "", // The destination folder path in the application where the bundle will be placed.
+        protected targetHTMLPagePath: string = "", // the target HTML page path where the bundle will be injected
+    ) { }
+
+    /**
+     * Template method to process the bundle injection.
+     * Orchestrates the injection process by calling methods in a specific sequence.
+     */
+    public async process() {
+        await this.preInject();
+        await this.inject();
+        await this.postInject();
+    }
+
+    /**
+     * Method to define actions to be performed before injection.
+     * To be implemented by subclasses based on specific needs.
+     */
+    protected abstract preInject(): Promise<void>;
+
+    /**
+     * Injects the bundle into the target HTML page.
+     * Default implementation can be overridden by subclasses if needed.
+     */
+    protected async inject(): Promise<void> {
+        if (!existsSync(this.targetHTMLPagePath)) {
+            console.error(`Target HTML page does not exist: ${this.targetHTMLPagePath}`);
+            return;
+        }
+
+        // Prepare the instrumentation bundle's relative path for the <script> element to inject
+        const bundleDestinationParentRelativePath =
+            this.bundleDestinationParentPath.includes(`src${path.sep}`) ?
+                this.bundleDestinationParentPath.split(`src${path.sep}`)[1] : this.bundleDestinationParentPath;
+        let bundleDestinationRelativePath = path.join(bundleDestinationParentRelativePath, this.bundle.fileName);
+
+        // If running on Windows, make sure to replace the backslashes with slashes
+        if (bundleDestinationRelativePath.includes('\\'))
+            bundleDestinationRelativePath = bundleDestinationRelativePath.replace(/\\/g, '/');
+
+        // Preparing the <script> element to inject
+        const bundleScriptTag = `<script src="${bundleDestinationRelativePath}"></script>`;
+
+        // Read and update the target HTML page's content by appending the script to <body>'s content
+        const htmlContent = readFileSync(this.targetHTMLPagePath, 'utf8');
+        const updatedHtmlContent = htmlContent.replace('</body>', `${bundleScriptTag}</body>`);
+
+        // Write updates to the file
+        writeFileSync(this.targetHTMLPagePath, updatedHtmlContent);
+        console.log(`Injected the instrumentation bundle into ${this.targetHTMLPagePath}`);
+    }
+
+    /**
+     * Method to define actions to be performed after injection.
+     * To be implemented by subclasses based on specific needs.
+     */
+    protected abstract postInject(): Promise<void>;
 }
