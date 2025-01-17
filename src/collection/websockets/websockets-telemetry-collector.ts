@@ -37,7 +37,7 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
             ws.on('close', async () => {
                 console.log('Collector: Client disconnected');
                 try {
-                    await this.handleRetry(() => this.flushData());
+                    await this.handleRetry(() => this.flushData());  // Flush on client disconnect
                     console.log('Collector: Telemetry data flushed and stored.');
                 } catch (error){
                     console.error('Collector: Failed to flush and store telemetry data:', error);

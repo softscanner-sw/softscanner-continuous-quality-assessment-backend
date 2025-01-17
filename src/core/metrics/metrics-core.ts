@@ -64,6 +64,10 @@ export abstract class Metric {
         console.log(`required telemetry: ${this._requiredTelemetry}`);
     }
 
+    resetValue(): void {
+        this._value = undefined;
+    }
+
     /**
      * Abstract method to calculate or retrieve the value of the metric.
      * Must be implemented by subclasses.

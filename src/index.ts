@@ -3,8 +3,7 @@ import { FileTelemetryDataReader, MetricsComputer } from './core/computation/met
 import { TelemetryExportDestinationType, TelemetryType, UserInteractionEvent } from './core/instrumentation/instrumentation-core';
 import { NUUMetric, UIFMetric } from './core/metrics/user-engagement/metrics-user-engagement';
 import { SSQMM } from './core/model/model-mapping';
-import { AngularInstrumentationBundleInjector } from './injection/angular/angular-injection';
-import { OpenTelemetryInstrumentationConfig, OpenTelemetryInstrumentationGenerator, OpenTelemetryUserInteractionEventsConfig } from './instrumentation/opentelemetry/opentelemetry-instrumentation';
+import { OpenTelemetryInstrumentationConfig, OpenTelemetryUserInteractionEventsConfig } from './instrumentation/opentelemetry/opentelemetry-instrumentation';
 import { OpenTelemetryAutomaticTracingOptions } from './instrumentation/opentelemetry/strategies/opentelemetry-instrumentation-strategy-tracing';
 
 import { spawn } from 'child_process';

@@ -1,3 +1,4 @@
+import { EventEmitter } from 'stream';
 import { TelemetryStorageStrategy } from '../strategies/telemetry-storage';
 
 /**
@@ -36,6 +37,7 @@ export interface TelemetryStorageStrategyConfig {
 export interface TelemetryCollectorConfig {
     storageEndpoints?: TelemetryStorageEndpoint[], // Endpoints where collected telemetry data should be stored.
     dataFormat?: TelemetryDataFormat // The format of the telemetry data.
+    port?: number; // The telemetry collector server port number
     authentication?: { // Optional authentication config for accessing the storage endpoints.
         method: 'Bearer' | 'Basic' | 'APIKey';
         credentials: string | { apiKey: string; secret: string; };
@@ -55,23 +57,33 @@ export interface TelemetryCollectorConfig {
 export abstract class TelemetryCollector {
     protected telemetryData: any[] = []; // Generic container for the collected telemetry data
     protected _telemetryStorageStrategy?: TelemetryStorageStrategy; // The strategy used for storing the collected telemetry data.
+    private eventEmitter = new EventEmitter(); // Used to notify listeners upon flushing new data to telemetry backends
 
-    constructor(protected _config: TelemetryCollectorConfig) {}
+    constructor(protected _config: TelemetryCollectorConfig) { }
 
-    get config() : TelemetryCollectorConfig{
+    get config(): TelemetryCollectorConfig {
         return this._config || {};
     }
 
-    set config(config: TelemetryCollectorConfig){
+    set config(config: TelemetryCollectorConfig) {
         this._config = config;
     }
 
-    get telemetryStorageStrategy(): TelemetryStorageStrategy | undefined{
+    get telemetryStorageStrategy(): TelemetryStorageStrategy | undefined {
         return this._telemetryStorageStrategy;
     }
 
-    set telemetryStorageStrategy(strategy: TelemetryStorageStrategy){
+    set telemetryStorageStrategy(strategy: TelemetryStorageStrategy) {
         this._telemetryStorageStrategy = strategy;
+    }
+
+    // Event handling methods
+    on(event: 'dataFlushed', listener: (endpoints: TelemetryStorageEndpoint[]) => void): void {
+        this.eventEmitter.on(event, listener);
+    }
+
+    emit(event: 'dataFlushed', data: any): void {
+        this.eventEmitter.emit(event, data);
     }
 
     /**
@@ -94,12 +106,13 @@ export abstract class TelemetryCollector {
      */
     async flushData(): Promise<void> {
         // By default, simply call storeMetrics() and clear the telemetryData array.
-		try {
-			await this.storeMetrics();
-			this.telemetryData = [];
-		} catch (error){
-			console.log(`Error during telemetry data flushing from telemetry collector: ${error}`)
-		}
+        try {
+            await this.storeMetrics();
+            this.emit('dataFlushed', this._config.storageEndpoints); // Notify listeners
+            this.telemetryData = [];
+        } catch (error) {
+            console.log(`Error during telemetry data flushing from telemetry collector: ${error}`)
+        }
     }
 
     /**

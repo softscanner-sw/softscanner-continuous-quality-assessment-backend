@@ -16,7 +16,7 @@ export abstract class TelemetryStorageStrategy {
      */
     constructor(
         protected storageEndpoint: TelemetryStorageEndpoint,
-        protected config: TelemetryStorageStrategyConfig){
+        protected config: TelemetryStorageStrategyConfig) {
     }
 
     /**
@@ -43,7 +43,7 @@ export abstract class TelemetryStorageStrategy {
 /**
  * Implements a telemetry storage strategy that stores telemetry data in files.
  */
-export class TelemetryFileStorageStrategy extends TelemetryStorageStrategy{
+export class TelemetryFileStorageStrategy extends TelemetryStorageStrategy {
     protected _filePath: string = '';
 
     /**
@@ -55,8 +55,8 @@ export class TelemetryFileStorageStrategy extends TelemetryStorageStrategy{
     constructor(
         protected storageEndpoint: TelemetryStorageEndpoint,
         protected config: TelemetryStorageStrategyConfig,
-        protected _storageFilesRootFolder: string = path.join('assets', 'files')){
-            super(storageEndpoint, config);
+        protected _storageFilesRootFolder: string = path.join('assets', 'files')) {
+        super(storageEndpoint, config);
     }
 
     /**
@@ -64,10 +64,15 @@ export class TelemetryFileStorageStrategy extends TelemetryStorageStrategy{
      * If not already set, it constructs the path using the storage endpoint URI.
      * @returns {string} The full path to the telemetry data file.
      */
-    get filePath(): string{
-        if (!this._filePath){
+    get filePath(): string {
+        if (!this._filePath) {
             const projectRootPath = path.resolve(__dirname, '../../../'); // this project's root folder path
-            this._filePath = path.join(projectRootPath, this._storageFilesRootFolder, this.storageEndpoint.uri); // the storage endpoint URI will be obtained from the application's instrumentation bundle
+
+            // Check if the URI is absolute, and avoid appending it to the root path
+            if (path.isAbsolute(this.storageEndpoint.uri))
+                this._filePath = this.storageEndpoint.uri; // Use the absolute path as-is
+            else
+                this._filePath = path.join(projectRootPath, this._storageFilesRootFolder, this.storageEndpoint.uri);
         }
 
         return this._filePath;
@@ -118,7 +123,7 @@ export class TelemetryFileStorageStrategy extends TelemetryStorageStrategy{
 /**
  * A telemetry database storage strategy will have a database-specific connector (i.e., having its own class database connector hierarchy) and will implement at least CRUD operations on the database. etc.
  */
-export class TelemetryDatabaseStorageStrategy extends TelemetryStorageStrategy{
+export class TelemetryDatabaseStorageStrategy extends TelemetryStorageStrategy {
     store(data: any): Promise<void> {
         throw new Error('Method not implemented.');
     }
@@ -127,5 +132,5 @@ export class TelemetryDatabaseStorageStrategy extends TelemetryStorageStrategy{
     }
     read(id: string): Promise<any> {
         throw new Error('Method not implemented.');
-    }   
+    }
 }

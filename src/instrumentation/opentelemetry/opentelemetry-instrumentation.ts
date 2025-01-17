@@ -3,7 +3,7 @@ import * as path from "path";
 import webpack from "webpack";
 
 import { ApplicationMetadata } from "../../core/application-core";
-import { ApplicationInstrumentationMetadata, InstrumentationGenerator, TelemetryConfig, TelemetryExportDestination, TelemetryExportProtocol, TelemetryType, UserInteractionEvent } from "../../core/instrumentation/instrumentation-core";
+import { ApplicationInstrumentationMetadata, InstrumentationBundle, InstrumentationGenerator, TelemetryConfig, TelemetryExportDestination, TelemetryExportProtocol, TelemetryType, UserInteractionEvent } from "../../core/instrumentation/instrumentation-core";
 import { Metric } from "../../core/metrics/metrics-core";
 import { Utils } from "../../core/util/util-core";
 import { OpenTelemetryInstrumentationStrategy } from "./strategies/opentelemetry-instrumentation-strategy-core";
@@ -319,7 +319,7 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         fs.writeFileSync(tsConfigPath, JSON.stringify(tsConfig, null, 2));
     }
 
-    private createInstrumentationBundle(){
+    private createInstrumentationBundle(): InstrumentationBundle{
         const instrumentationStrategy = this._instrumentationStrategy as OpenTelemetryInstrumentationStrategy;
         const projectRootPath = path.resolve(__dirname, '../../../'); // this project's root folder path
 

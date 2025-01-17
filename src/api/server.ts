@@ -1,8 +1,11 @@
 import cors from 'cors';
-import { spawn } from 'child_process';
 import express, { Request, Response } from 'express';
-import { QualityAssessmentService } from '../assessment/quality-assessment-service';
 import { ApplicationMetadata } from '../core/application-core';
+import { TelemetryService } from '../core/collection/telemetry-service';
+import { InstrumentationService } from '../core/instrumentation/instrumentation-service';
+import { MetricsService } from '../core/metrics/metrics-service';
+import { QualityModelService } from '../core/model/model-service';
+import { ProgressTracker } from '../core/util/util-core';
 
 // Initialize the app
 const app = express();
@@ -14,41 +17,31 @@ app.use(cors());
 // Middleware to parse JSON
 app.use(express.json());
 
-// Create an instance of the QualityAssessmentService
-const qualityAssessmentService = new QualityAssessmentService();
+// Shared ProgressTracker instance
+const progressTracker = new ProgressTracker();
 
-// Function to start the WebSocket telemetry collector
-function startTelemetryCollector() {
-    console.log('Starting WebSocket telemetry collector...');
+// The services necessary to interact with backend components
+const modelService = new QualityModelService();
+const instrumentationService = new InstrumentationService();
+const telemetryService = new TelemetryService();
+const metricsService = new MetricsService();
 
-    // Launch the collector as a separate process
-    const collectorProcess = spawn('node', ['dist/api/websockets-server.js'], {
-        stdio: 'inherit', // This pipes the output to the main console
-    });
-
-    // Handle collector process events
-    collectorProcess.on('error', (error) => {
-        console.error('Error starting telemetry collector:', error);
-    });
-
-    collectorProcess.on('close', (code) => {
-        console.log(`Collector: WebSocketTelemetryCollector process exited with code ${code}`);
-    });
-
-    console.log('Collector: WebSocket telemetry collector running on ws://localhost:8081');
-}
+// Passing the shared tracker instance to all services
+instrumentationService.setProgressTracker(progressTracker);
+telemetryService.setProgressTracker(progressTracker);
+metricsService.setProgressTracker(progressTracker);
 
 /**
  * Endpoint to retrieve the quality model and goals
  */
 app.get('/api/quality-model', (req: Request, res: Response) => {
-    res.json(qualityAssessmentService.ssqmm.qualityModel.toJSON());
+    res.json(modelService.ssqmm.qualityModel.toJSON());
 });
 
 /**
- * Endpoint to receive selected goals and application metadata
+ * Endpoint to receive selected goals and application metadata and perform quality assessment
  */
-app.post('/api/instrumentation', async (req: Request, res: Response) => {
+app.post('/api/assessment', async (req: Request, res: Response) => {
     const { metadata, selectedGoals } = req.body;
 
     // console.log('Received Raw Metadata:', JSON.stringify(metadata, null, 2));
@@ -69,20 +62,26 @@ app.post('/api/instrumentation', async (req: Request, res: Response) => {
     );
 
     // Log received data
-    console.log('Received Application Metadata:', appMetadata);
-    console.log('Received Selected Goals:', selectedGoals);
+    console.log('Server: Received Application Metadata:', appMetadata);
+    console.log('Server: Received Selected Goals:', selectedGoals);
 
-    // Perform quality assessment with the received data
     try {
-        await qualityAssessmentService.performQualityAssessment(appMetadata, selectedGoals);
+         // Trigger instrumentation
+        const bundleName = await instrumentationService.instrument(appMetadata, selectedGoals);
 
-         // Start the telemetry collector after instrumentation is complete
-         startTelemetryCollector();
+        // setup telemetry collector
+        const collector = await telemetryService.setupTelemetryCollector(appMetadata, bundleName);
 
-        res.status(200).send({ message: 'Instrumentation completed successfully!' });
+        // Start metrics computation
+        await metricsService.computeMetrics(collector, selectedGoals);
+
+        res.status(202).send({
+            message: 'Assessment started successfully!',
+            progressEndpoint: '/api/progress'
+        });
     } catch (error) {
-        console.error('Error during instrumentation:', error);
-        res.status(500).send({ error: 'Failed to start instrumentation' });
+        console.error('Error during assessment:', error);
+        res.status(500).send({ error: 'Assessment process failed' });
     }
 });
 
@@ -94,17 +93,23 @@ app.get('/api/progress', (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    qualityAssessmentService.onProgress((message) => {
-        res.write(`data: ${JSON.stringify({ message })}\n\n`);
+    // Subscribe to progress updates
+    progressTracker.onProgress((message) => {
+        res.write(`data: ${JSON.stringify({ type: 'progress', message })}\n\n`);
+    });
+
+    // Send metrics updates
+    metricsService.onMetricsUpdated((metrics) => {
+        res.write(`data: ${JSON.stringify({ type: 'metrics', metrics })}\n\n`);
     });
 
     req.on('close', () => {
-        console.log('Client disconnected from progress stream');
+        console.log('Server: Client disconnected from progress stream');
         res.end();
     });
 });
 
 // Start the server
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server: Server is running on http://localhost:${port}`);
 });
