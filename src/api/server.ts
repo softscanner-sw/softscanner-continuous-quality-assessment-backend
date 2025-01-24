@@ -167,6 +167,7 @@ app.get('/api/metrics', (req: Request, res: Response) => {
             metrics: goal.metrics.map(metric => ({
                 name: metric.name,
                 acronym: metric.acronym,
+                description: metric.description,
                 value: metrics.find(m => m.acronym === metric.acronym)?.value || 0,
                 unit: metric.unit,
                 history: metrics.find(m => m.acronym === metric.acronym)?.history || []
