@@ -86,26 +86,33 @@ app.post('/api/assessment', async (req: Request, res: Response) => {
         }))
     };
 
-    try {
-        // Trigger instrumentation
-        const bundleName = await instrumentationService.instrument(appMetadata, selectedGoals);
+    // Respond immediately with the assessment ID
+    res.status(202).send({
+        message: 'Assessment started successfully!',
+        assessmentId: assessmentId,  // Send unique ID back to the client
+        progressEndpoint: `/api/progress?assessmentId=${assessmentId}`,
+        metricsEndpoint: `/api/metrics?assessmentId=${assessmentId}`
+    });
 
-        // setup telemetry collector
-        const collector = await telemetryService.setupTelemetryCollector(appMetadata, bundleName);
+    // Asynchronously execute the instrumentation process
+    (async () => {
+        try {
+            // Trigger instrumentation
+            const bundleName = await instrumentationService.instrument(appMetadata, selectedGoals);
 
-        // Start metrics computation
-        await metricsService.computeMetrics(collector, selectedGoals);
+            // Setup telemetry collector
+            const collector = await telemetryService.setupTelemetryCollector(appMetadata, bundleName);
 
-        res.status(202).send({
-            message: 'Assessment started successfully!',
-            assessmentId: assessmentId,  // Send unique ID back to the client
-            progressEndpoint: `/api/progress?assessmentId=${assessmentId}`,
-            metricsEndpoint: `/api/metrics?assessmentId=${assessmentId}`
-        });
-    } catch (error) {
-        console.error('Error during assessment:', error);
-        res.status(500).send({ error: 'Assessment process failed' });
-    }
+            // Start metrics computation
+            await metricsService.computeMetrics(collector, selectedGoals);
+
+            progressTracker.notifyProgress('Assessment process completed successfully.');
+        } catch (error: any) {
+            console.error('Error during assessment:', error);
+            progressTracker.notifyProgress(`Assessment process failed: ${error.message}`);
+            res.status(500).send({ error: `Assessment process failed: ${error.message}` });
+        }
+    })();
 });
 
 /**
