@@ -9,7 +9,7 @@ export class NUUMetric extends Metric {
     constructor(
         private _nbSessions: number = 1,
     ) {
-        super("Number of Unique Users", "Number of distinct users using an application", "NUU");
+        super("Number of Unique Users", "Number of distinct users using an application", "users", "NUU");
     }
 
     get nbSessions(): number {
@@ -61,7 +61,7 @@ export class UIFMetric extends Metric {
         private _nbSessions: number = 1,
         private _selectedEvents: UserInteractionEvent[] = UserInteractionEvent.getAllEvents(),
     ) {
-        super("User Interaction Frequency", "How frequently users interact with the software during a typical session", "UIF");
+        super("User Interaction Frequency", "How frequently users interact with the software during a typical session", "interactions/session", "UIF");
     }
 
     get totalInteractions(): number {

@@ -17,6 +17,7 @@ export abstract class Metric {
     constructor(
         protected _name: string,
         protected _description: string,
+        protected _unit: string,
         protected _acronym: string = "",
         protected _requiredTelemetry: TelemetryType[] = []) {
     }
@@ -35,6 +36,10 @@ export abstract class Metric {
 
     get value(): any {
         return this._value;
+    }
+
+    get unit(): string {
+        return this._unit;
     }
 
     get requiredTelemetry(): TelemetryType[] {
@@ -61,7 +66,7 @@ export abstract class Metric {
      * Displays information about the metric.
      */
     displayInfo(): void {
-        console.log(`name: ${this._name}, acronym: ${this._acronym}, description: ${this._description}, value: ${this.computeValue()}`);
+        console.log(`name: ${this._name}, acronym: ${this._acronym}, description: ${this._description}, value: ${this.computeValue()}, unit: ${this._unit}`);
         console.log(`required telemetry: ${this._requiredTelemetry}`);
     }
 

@@ -10,6 +10,7 @@ import { QualityModelService } from "./quality-model.service";
 export class MetricsService {
     private metricsUpdateListeners: ((metrics: Metric[]) => void)[] = [];
     private progressTracker: ProgressTracker = new ProgressTracker();
+    private metricsHistory: { [key: string]: { timestamp: string; value: number }[] } = {};
 
     setProgressTracker(progressTracker: ProgressTracker): void {
         this.progressTracker = progressTracker;
@@ -42,22 +43,39 @@ export class MetricsService {
 
                 // Listen for metrics updates and notify subscribers
                 metricsComputer.on('metricsComputed', (computedMetrics: Metric[]) => {
-                    this.notifyMetricsUpdated(computedMetrics);
+                    // Add timestamps to the metrics for history tracking
+                    const timestamp = new Date().toISOString();
+                    const enrichedMetrics = computedMetrics.map(metric => {
+                        if (!this.metricsHistory[metric.acronym]) {
+                            this.metricsHistory[metric.acronym] = [];
+                        }
+
+                        this.metricsHistory[metric.acronym].push({ timestamp, value: metric.value || 0 });
+
+                        return {
+                            name: metric.name,
+                            acronym: metric.acronym,
+                            value: metric.value,
+                            unit: metric.unit,
+                            history: this.metricsHistory[metric.acronym]  // Injecting history separately
+                        };
+                    });
+
+                    this.notifyMetricsUpdated(enrichedMetrics);
                 });
 
                 // Now process the telemetry file and trigger metric computation
                 await metricsComputer.onTelemetryUpdate(storageEndpoint.uri);
-
                 this.progressTracker.notifyProgress('Metrics service: Metrics computation complete.');
             }
         });
     }
 
-    onMetricsUpdated(listener: (metrics: Metric[]) => void): void {
+    onMetricsUpdated(listener: (metrics: any[]) => void): void {
         this.metricsUpdateListeners.push(listener);
     }
 
-    private notifyMetricsUpdated(metrics: Metric[]): void {
+    private notifyMetricsUpdated(metrics: any[]): void {
         console.log('Metrics service: New metrics available, notifying listeners...');
         this.progressTracker.notifyProgress('Metrics service: New metrics available, notifying listeners...');
         this.metricsUpdateListeners.forEach(listener => listener(metrics));
