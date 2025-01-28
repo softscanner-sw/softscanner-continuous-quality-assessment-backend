@@ -8,7 +8,7 @@ import { Metric } from "../metrics/metrics-core";
  */
 export abstract class Goal {
     protected _metrics: Metric[] = [];
-    assessment?: Assessment;
+    assessments: Assessment[] = [];
 
     constructor(
         private _name: string,
@@ -70,6 +70,20 @@ export abstract class Goal {
 
     get metrics(): Metric[] {
         return this._metrics;
+    }
+
+    /**
+     * Adds a new assessment to the list.
+     */
+    addAssessment(assessment: Assessment): void {
+        this.assessments.push(assessment);
+    }
+
+    /**
+     * Returns the latest assessment or null if none exist.
+     */
+    get latestAssessment(): Assessment | null {
+        return this.assessments.length > 0 ? this.assessments[this.assessments.length - 1] : null;
     }
 
     /**

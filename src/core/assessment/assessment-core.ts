@@ -10,8 +10,9 @@ import { AssessmentStrategy, WeightedSumAssessmentStrategy } from "./assessment-
  */
 export class Assessment {
     goal: Goal;
-    assessments: { metric: string, value: number, weight: number }[];
+    assessments: MetricAssessment[];
     globalScore: number;
+    timestamp: string = '';
 
     constructor(goal: Goal) {
         this.goal = goal;
@@ -22,8 +23,8 @@ export class Assessment {
     /**
      * Adds an assessment entry with its computed value and weight.
      */
-    addAssessment(metric: string, value: number, weight: number) {
-        this.assessments.push({ metric, value, weight });
+    addAssessment(metric: string, value: number, weight: number, timestamp: string) {
+        this.assessments.push({ metric, value, weight, timestamp });
     }
 
     /**
@@ -31,6 +32,7 @@ export class Assessment {
      */
     computeFinalScore(strategy: AssessmentStrategy) {
         this.globalScore = strategy.aggregate(this.assessments);
+        this.timestamp = new Date().toISOString(); // Set final timestamp after score computation
     }
 }
 
@@ -40,6 +42,13 @@ export class Assessment {
 export interface AssessmentContext {
     metadata: ApplicationMetadata;
     selectedGoals: Goal[];
+}
+
+export interface MetricAssessment {
+    metric: string;
+    value: number;
+    weight: number;
+    timestamp: string;
 }
 
 /**
@@ -82,7 +91,7 @@ export class AssessmentEngine {
                 if (interpreter) {
                     const value = interpreter.interpret();
                     const weight = interpreter.assignWeight();
-                    assessment.addAssessment(metric.acronym, value, weight);
+                    assessment.addAssessment(metric.acronym, value, weight, new Date().toISOString());
                 } else {
                     console.warn(`No interpreter found for metric: ${metric.acronym}`);
                 }

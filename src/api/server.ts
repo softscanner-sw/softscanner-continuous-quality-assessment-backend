@@ -173,10 +173,11 @@ app.get('/api/assessments', (req: Request, res: Response) => {
                     unit: metric.unit,
                     history: metric.history
                 })),
-                assessment: goal.assessment ? {
-                    globalScore: goal.assessment.globalScore,
-                    details: goal.assessment.assessments
-                } : null  // Ensure safe access
+                assessments: goal.assessments.map(assessment => ({
+                    timestamp: assessment.timestamp,
+                    globalScore: assessment.globalScore,
+                    details: assessment.assessments
+                }))
             }))
         };
 

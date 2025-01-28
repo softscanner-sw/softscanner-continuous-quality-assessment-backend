@@ -8,7 +8,7 @@ import { IProgressTrackable, ProgressTracker } from "./progress-tracker.service"
 /**
  * Service to handle telemetry collection and storage and metric computation for quality assessment.
  */
-export class QualityAssessmentService implements IProgressTrackable{
+export class QualityAssessmentService implements IProgressTrackable {
     private assessmentEngine: AssessmentEngine = new AssessmentEngine();
     private assessmentUpdateListeners: ((goals: Goal[]) => void)[] = [];
     private metricsService: MetricsService = new MetricsService();
@@ -54,10 +54,10 @@ export class QualityAssessmentService implements IProgressTrackable{
         const assessments = this.assessmentEngine.assessGoals(this.selectedGoals, metrics);
 
         // Attach assessments to goals
-        assessments.forEach((assessment: Assessment) => {
-            const goal = this.selectedGoals.find(g => g.name === assessment.goal.name);
-            if (goal) {
-                goal.assessment = assessment;  // Attach assessment to the goal
+        this.selectedGoals.forEach(goal => {
+            const assessment = assessments.find(a => a.goal.name === goal.name);
+            if (assessment) {
+                goal.addAssessment(assessment);  // Attach assessment to the goal
             }
         });
 
@@ -92,7 +92,7 @@ export class QualityAssessmentService implements IProgressTrackable{
         this.selectedGoals.forEach(goal => {
             const assessment = assessments.find(a => a.goal.name === goal.name);
             if (assessment) {
-                goal.assessment = assessment;  // Assign assessment instance to Goal
+                goal.addAssessment(assessment);  // Attach assessment to the goal
             }
         });
 
