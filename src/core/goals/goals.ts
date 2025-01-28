@@ -1,3 +1,4 @@
+import { Assessment } from "../assessment/assessment-core";
 import { Metric } from "../metrics/metrics-core";
 
 /**
@@ -7,6 +8,7 @@ import { Metric } from "../metrics/metrics-core";
  */
 export abstract class Goal {
     protected _metrics: Metric[] = [];
+    assessment?: Assessment;
 
     constructor(
         private _name: string,
@@ -62,7 +64,7 @@ export abstract class Goal {
      * Sets a new weight for this goal
      * @param weight the new weight for this goal
      */
-    public set weight(weight: number) {
+    set weight(weight: number) {
         this._weight = weight;
     }
 

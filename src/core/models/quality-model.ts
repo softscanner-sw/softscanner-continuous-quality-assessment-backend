@@ -85,13 +85,46 @@ export class QualityModel {
     }
 
     /**
-     * Finds and returns a goal by its name.
+     * Finds and returns a goal by its name, searching recursively through all sub-goals.
      * @param goalName The name of the goal to find.
      * @returns The Goal instance if found, or undefined.
      */
     getGoalByName(goalName: string): Goal | undefined {
-        return this._goals.find(goal => goal.name === goalName);
+        for (const goal of this._goals) {
+            if (goal.name === goalName) {
+                return goal;
+            }
+            if (goal instanceof CompositeGoal) {
+                const foundGoal = this.findGoalRecursive(goal, goalName);
+                if (foundGoal) {
+                    return foundGoal;
+                }
+            }
+        }
+        return undefined;
     }
+
+    /**
+     * Helper function to recursively search for a goal within composite goals.
+     * @param compositeGoal The composite goal to search within.
+     * @param goalName The name of the goal to find.
+     * @returns The Goal instance if found, or undefined.
+     */
+    private findGoalRecursive(compositeGoal: CompositeGoal, goalName: string): Goal | undefined {
+        for (const subGoal of compositeGoal.subGoals) {
+            if (subGoal.name === goalName) {
+                return subGoal;
+            }
+            if (subGoal instanceof CompositeGoal) {
+                const foundGoal = this.findGoalRecursive(subGoal, goalName);
+                if (foundGoal) {
+                    return foundGoal;
+                }
+            }
+        }
+        return undefined;
+    }
+
 
     /**
      * Checks if a goal exists for this model by name.

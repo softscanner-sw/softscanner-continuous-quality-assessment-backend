@@ -28,15 +28,15 @@ export class TelemetryFileStorageStrategy extends TelemetryStorageStrategy {
      */
     get filePath(): string {
         if (!this._filePath) {
-            const projectRootPath = path.resolve(__dirname, '../../../'); // this project's root folder path
-
-            // Check if the URI is absolute, and avoid appending it to the root path
-            if (path.isAbsolute(this.storageEndpoint.uri))
-                this._filePath = this.storageEndpoint.uri; // Use the absolute path as-is
-            else
-                this._filePath = path.join(projectRootPath, this._storageFilesRootFolder, this.storageEndpoint.uri);
+            // Ensure that `uri` is consistent with how `TelemetryService` generates it
+            if (path.isAbsolute(this.storageEndpoint.uri)) {
+                this._filePath = this.storageEndpoint.uri; // Use absolute path as-is
+            } else {
+                // Handle relative URIs (unlikely in your case)
+                this._filePath = path.join(this._storageFilesRootFolder, this.storageEndpoint.uri);
+            }
         }
-
+        // console.log(`TelemetryFileStorageStrategy: Final file path: ${this._filePath}`);
         return this._filePath;
     }
 
@@ -46,8 +46,10 @@ export class TelemetryFileStorageStrategy extends TelemetryStorageStrategy {
      */
     async store(data: any): Promise<void> {
         // Ensure the exportation destination path exists
-        if (!fs.existsSync(path.dirname(this.filePath)))
+        if (!fs.existsSync(path.dirname(this.filePath))) {
+            // console.log(`TelemetryFileStorageStrategy: Creating directory: ${path.dirname(this.filePath)}`);
             fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
+        }
 
         // Use a writable stream for efficiency in case of large data sets
         const fileStream = fs.createWriteStream(this.filePath, { flags: 'a' });

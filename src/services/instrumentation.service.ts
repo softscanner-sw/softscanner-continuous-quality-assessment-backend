@@ -1,14 +1,14 @@
 import { ApplicationMetadata } from "../core/application/application-metadata";
 import { BundleInjector } from "../core/instrumentation/instrumentation-bundle-injector";
 import { InstrumentationManager } from "../core/instrumentation/instrumentation-manager";
-import { ProgressTracker } from "./progress-tracker.service";
+import { IProgressTrackable, ProgressTracker } from "./progress-tracker.service";
 import { QualityModelService } from "./quality-model.service";
 
 /**
  * Service to handle the instrumentation process.
  */
-export class InstrumentationService {
-    private progressTracker: ProgressTracker = new ProgressTracker();
+export class InstrumentationService implements IProgressTrackable{
+    private progressTracker!: ProgressTracker;
 
     constructor(
         private _instrumentationManager: InstrumentationManager = new InstrumentationManager(),
@@ -28,6 +28,10 @@ export class InstrumentationService {
      * @returns the instrumentation bundle file name
      */
     async instrument(appMetadata: ApplicationMetadata, selectedGoals: string[]): Promise<string> {
+        if (!this.progressTracker) {
+            throw new Error('Progress tracker not set in InstrumentationService.');
+        }
+        
         console.log('Instrumentation service: Starting instrumentation...');
         this.progressTracker.notifyProgress('Instrumentation service: Starting instrumentation...');
 

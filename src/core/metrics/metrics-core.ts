@@ -8,6 +8,7 @@ import { TelemetryType } from "../telemetry/telemetry";
  */
 export abstract class Metric {
     protected _value: any;
+    protected _history: MetricHistory = [];
     /**
      * Constructs a new Metric instance.
      * @param _name The name of the metric.
@@ -46,6 +47,10 @@ export abstract class Metric {
         return this._requiredTelemetry;
     }
 
+    get history(): MetricHistory {
+        return this._history;
+    }
+
     /**
      * Checks if a specific type of telemetry is required by this metric.
      * @param telemetryType The type of telemetry to check.
@@ -80,6 +85,13 @@ export abstract class Metric {
      */
     abstract computeValue(data?: any[]): any;
 }
+
+export type MetricHistoryEntry = {
+    'timestamp': string,
+    'value': number
+}
+
+export type MetricHistory = MetricHistoryEntry[]
 
 export interface GoalMapper {
     map(goal: Goal): any

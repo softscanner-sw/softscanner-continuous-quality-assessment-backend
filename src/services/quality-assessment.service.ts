@@ -1,42 +1,119 @@
-
-import { ApplicationMetadata } from "../core/application/application-metadata";
-import { ProgressTracker } from "./progress-tracker.service";
-import { QualityModelService } from "./quality-model.service";
+import { Assessment, AssessmentEngine } from "../core/assessment/assessment-core";
+import { Goal } from "../core/goals/goals";
+import { Metric } from "../core/metrics/metrics-core";
+import { TelemetryCollector } from "../core/telemetry/telemetry";
+import { MetricsService } from "./metrics.service";
+import { IProgressTrackable, ProgressTracker } from "./progress-tracker.service";
 
 /**
  * Service to handle telemetry collection and storage and metric computation for quality assessment.
  */
-export class QualityAssessmentService {
-    private progressListener: ProgressTracker = new ProgressTracker();
+export class QualityAssessmentService implements IProgressTrackable{
+    private assessmentEngine: AssessmentEngine = new AssessmentEngine();
+    private assessmentUpdateListeners: ((goals: Goal[]) => void)[] = [];
+    private metricsService: MetricsService = new MetricsService();
+    private collector?: TelemetryCollector;
+    private selectedGoals: Goal[] = [];
+    private progressTracker!: ProgressTracker;
+
 
     constructor() {
+        // Register handler for when new metrics are computed
+        this.metricsService.onMetricsUpdated(this.handleNewMetrics.bind(this));
+    }
+
+    setProgressTracker(progressTracker: ProgressTracker): void {
+        this.progressTracker = progressTracker;
+        this.metricsService.setProgressTracker(progressTracker);
     }
 
     /**
-         * Triggers the quality assessment process.
-         * It starts by generating a configuration to establish a telemetry collector
-         * based on the selected goals and application metadata.
-         * It then extracts metrics to compute based on the selected goals and
-         * application metadata.
-         * Then, for every newly flushed telemetry data, it notifies the
-         * metric computer to compute the new metric values
-         * @param appMetadata The metadata of the application being instrumented.
-         * @param selectedGoals The selected quality goals.
-         */
-    async assess(appMetadata: ApplicationMetadata, selectedGoals: string[]): Promise<void> {
-        console.log('Starting assessment...');
-        this.progressListener.notifyProgress('Starting assessment...');
+     * Set context (collector and selected goals), allowing dynamic configuration.
+     */
+    setContext(collector: TelemetryCollector, goals: Goal[]) {
+        this.collector = collector;
+        this.selectedGoals = goals;
+    }
 
-        // Extract the required metrics from SSQMM based on the selected goals
-        const modelService = new QualityModelService();
-        const metrics = modelService.extractRequiredMetrics(modelService.ssqmm.goals, selectedGoals);
+    /**
+     * Handles newly computed metrics and updates assessments.
+     */
+    private async handleNewMetrics(metrics: Metric[]) {
+        if (!this.progressTracker) {
+            throw new Error('Progress tracker not set in QualityAssessmentService.');
+        }
 
-        console.log('Mapped Metrics:', metrics.map(metric => metric.name));
+        if (!this.selectedGoals || this.selectedGoals.length === 0) {
+            console.warn('QualityAssessmentService: No goals set for assessment.');
+            return;
+        }
 
-        // Check if metrics are available
-        if (metrics.length === 0)
-            throw new Error('No metrics found for the selected goals.');
+        this.progressTracker.notifyProgress('Quality Assessment Service: Computing new assessments...');
 
-        // @TODO we'll implement this later
+        // Perform assessment based on new metrics and selected goals
+        const assessments = this.assessmentEngine.assessGoals(this.selectedGoals, metrics);
+
+        // Attach assessments to goals
+        assessments.forEach((assessment: Assessment) => {
+            const goal = this.selectedGoals.find(g => g.name === assessment.goal.name);
+            if (goal) {
+                goal.assessment = assessment;  // Attach assessment to the goal
+            }
+        });
+
+        // Notify listeners about the updated goals
+        this.notifyAssessmentUpdated(assessments.map(a => a.goal));
+    }
+
+    /**
+     * Initiates the assessment process by computing metrics and assessing quality goals.
+     */
+    async assessQualityGoals(): Promise<Goal[]> {
+        if (!this.progressTracker) {
+            throw new Error('Progress tracker not set in QualityAssessmentService.');
+        }
+
+        if (!this.collector || this.selectedGoals.length === 0) {
+            throw new Error("QualityAssessmentService: Collector or goals not set.");
+        }
+
+        this.progressTracker.notifyProgress('Quality Assessment Service: Starting quality goal assessment...');
+
+        // Extract metrics from selected goals
+        const selectedMetrics = this.selectedGoals.flatMap(goal => goal.metrics);
+
+        // Compute metrics using the metrics service
+        const computedMetrics = await this.metricsService.computeMetrics(this.collector, selectedMetrics);
+
+        // Perform assessment based on the computed metrics
+        const assessments = this.assessmentEngine.assessGoals(this.selectedGoals, computedMetrics);
+
+        // Attach assessments to goals
+        this.selectedGoals.forEach(goal => {
+            const assessment = assessments.find(a => a.goal.name === goal.name);
+            if (assessment) {
+                goal.assessment = assessment;  // Assign assessment instance to Goal
+            }
+        });
+
+        // Notify listeners about the updated goals
+        this.notifyAssessmentUpdated(this.selectedGoals);
+        this.progressTracker.notifyProgress('Quality Assessment Service: Quality goal assessment completed.');
+        return this.selectedGoals;
+    }
+
+    /**
+     * Registers an event listener to notify when new assessments are available.
+     */
+    onAssessmentUpdated(listener: (goals: Goal[]) => void): void {
+        this.assessmentUpdateListeners.push(listener);
+    }
+
+    /**
+     * Notifies all listeners about new goal assessments.
+     */
+    private notifyAssessmentUpdated(goals: Goal[]): void {
+        console.log('Quality Assessment Service: New assessments available, notifying listeners...');
+        this.assessmentUpdateListeners.forEach(listener => listener(goals));
     }
 }

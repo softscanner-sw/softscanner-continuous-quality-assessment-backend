@@ -1,14 +1,15 @@
+import fs from "fs";
 import path from "path";
 import { ApplicationMetadata } from "../core/application/application-metadata";
 import { TelemetryCollector, TelemetryCollectorConfig, TelemetryStorageEndpointType } from "../core/telemetry/telemetry";
 import { WebSocketTelemetryCollector } from "../modules/telemetry/collectors/websockets/websockets-telemetry.collector";
-import { ProgressTracker } from "./progress-tracker.service";
+import { IProgressTrackable, ProgressTracker } from "./progress-tracker.service";
 
 /**
  * Service to handle the telemetry collection and storage process.
  */
-export class TelemetryService {
-    private progressTracker: ProgressTracker = new ProgressTracker();
+export class TelemetryService implements IProgressTrackable {
+    private progressTracker!: ProgressTracker;
 
     constructor() { }
 
@@ -39,11 +40,21 @@ export class TelemetryService {
     }
 
     private generateTelemetryCollectorConfiguration(appMetadata: ApplicationMetadata, bundleName: string) {
-        const projectRootPath = path.resolve(__dirname, '../../../'); // this project's root folder path
+        const projectRootPath = path.resolve(__dirname, '../../'); // this project's root folder path
         const storageFilesRootFolder: string = path.join(projectRootPath, 'assets', 'files');
         const normalizedAppName = appMetadata.generateNormalizedApplicationName('-');
         const telemetryFileName = path.basename(bundleName).replace('.bundle.js', '.jsonl');
-        const uri = path.join(storageFilesRootFolder, normalizedAppName, telemetryFileName);
+        const appStorageFolderPath = path.join(storageFilesRootFolder, normalizedAppName);
+
+        // Ensure the folder structure exists
+        if (!fs.existsSync(appStorageFolderPath)) {
+            fs.mkdirSync(appStorageFolderPath, { recursive: true });
+            console.log(`Telemetry service: Created folder for telemetry data: ${appStorageFolderPath}`);
+        }
+
+        const uri = path.join(appStorageFolderPath, telemetryFileName);
+        console.log(`TelemetryService: Generated URI for storage endpoint: ${uri}`);
+
 
         // console.log(`Telemetry service: Normalized App Name: ${normalizedAppName}`);
         // console.log(`Telemetry service: Configured storage endpoint name: ${telemetryFileName}`);
@@ -55,7 +66,7 @@ export class TelemetryService {
                 {
                     type: TelemetryStorageEndpointType.FILE,
                     name: telemetryFileName,
-                    uri: path.join(uri, normalizedAppName, telemetryFileName)
+                    uri: uri,
                 },
             ],
             dataFormat: "JSON",

@@ -1,5 +1,6 @@
 import { Goal } from "../../../core/goals/goals";
 import { GoalMapper, Metric } from "../../../core/metrics/metrics-core";
+import { MetricInterpreter } from "../../../core/metrics/metrics-interpreters";
 import { TelemetryType, UserInteractionEvent } from "../../../core/telemetry/telemetry";
 import { Utils } from "../../../core/util/util-core";
 
@@ -51,6 +52,19 @@ export class NUUMetric extends Metric {
         this._nbSessions = 1;
     }
 
+}
+
+/**
+ * Interpreter for the Number of Unique Users (NUU) metric.
+ */
+export class NUUInterpreter extends MetricInterpreter {
+    constructor(metric: NUUMetric, selectedGoals: Goal[]) {
+        super(metric, selectedGoals, 200); // Initial hardcoded max value for NUU
+    }
+
+    assignWeight(): number {
+        return this.selectedGoals.some(goal => goal.name === "User Engagement") ? 0.4 : 0.2;
+    }
 }
 
 export class UIFMetric extends Metric {
@@ -131,6 +145,19 @@ export class UIFMetric extends Metric {
     }
 }
 
+/**
+ * Interpreter for the User Interaction Frequency (UIF) metric.
+ */
+export class UIFInterpreter extends MetricInterpreter {
+    constructor(metric: UIFMetric, selectedGoals: Goal[]) {
+        super(metric, selectedGoals, 500); // Initial hardcoded max value for UIF
+    }
+
+    assignWeight(): number {
+        return this.selectedGoals.some(goal => goal.name === "User Engagement") ? 0.6 : 0.3;
+    }
+}
+
 export class UserEngagementMapper implements GoalMapper {
     map(goal: Goal) {
         if (goal.name !== "User Engagement")
@@ -143,5 +170,4 @@ export class UserEngagementMapper implements GoalMapper {
 
         goal.metrics.push(nuu, uif);
     }
-
 }

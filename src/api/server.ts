@@ -1,9 +1,11 @@
 import cors from 'cors';
 import express, { Request, Response } from 'express';
 import { ApplicationMetadata } from '../core/application/application-metadata';
+import { AssessmentContext } from '../core/assessment/assessment-core';
+import { Goal } from '../core/goals/goals';
 import { InstrumentationService } from '../services/instrumentation.service';
-import { MetricsService } from '../services/metrics.service';
 import { ProgressTracker } from '../services/progress-tracker.service';
+import { QualityAssessmentService } from '../services/quality-assessment.service';
 import { QualityModelService } from '../services/quality-model.service';
 import { TelemetryService } from '../services/telemetry.service';
 
@@ -24,20 +26,15 @@ const progressTracker = new ProgressTracker();
 const modelService = new QualityModelService();
 const instrumentationService = new InstrumentationService();
 const telemetryService = new TelemetryService();
-const metricsService = new MetricsService();
+const qualityAssessmentService = new QualityAssessmentService();
 
 // Passing the shared tracker instance to all services
 instrumentationService.setProgressTracker(progressTracker);
 telemetryService.setProgressTracker(progressTracker);
-metricsService.setProgressTracker(progressTracker);
+qualityAssessmentService.setProgressTracker(progressTracker);
 
 // Assessment Context Store
-const assessmentContext: {
-    [assessmentId: string]: {
-        metadata: ApplicationMetadata;
-        selectedGoals: { name: string; metrics: any[] }[];
-    };
-} = {};
+const assessmentContextStore: Record<string, AssessmentContext> = {};
 
 
 /**
@@ -70,28 +67,27 @@ app.post('/api/assessment', async (req: Request, res: Response) => {
         metadata.url
     );
 
+    // Retrieve Goal API instances based on selected goal names
+    const goals = selectedGoals.map((goalName: string) =>
+        modelService.ssqmm.qualityModel.getGoalByName(goalName)
+    ).filter(Boolean) as Goal[];
+
     // Log received data
     console.log('Server: Received Application Metadata:', appMetadata);
-    console.log('Server: Received Selected Goals:', selectedGoals);
+    console.log('Server: Received Selected Goals:', goals);
 
     // Generate a unique assessment ID
     const assessmentId = new Date().getTime().toString();
 
-    // Store context
-    assessmentContext[assessmentId] = {
-        metadata: appMetadata,
-        selectedGoals: selectedGoals.map((goal: string) => ({
-            name: goal,
-            metrics: modelService.extractRequiredMetrics(modelService.ssqmm.goals, [goal])
-        }))
-    };
+    // Initialize assessment context with selected goals
+    assessmentContextStore[assessmentId] = { metadata: appMetadata, selectedGoals: goals };
 
     // Respond immediately with the assessment ID
     res.status(202).send({
         message: 'Assessment started successfully!',
-        assessmentId: assessmentId,  // Send unique ID back to the client
+        assessmentId,
         progressEndpoint: `/api/progress?assessmentId=${assessmentId}`,
-        metricsEndpoint: `/api/metrics?assessmentId=${assessmentId}`
+        assessmentEndpoint: `/api/assessments?assessmentId=${assessmentId}`
     });
 
     // Asynchronously execute the instrumentation process
@@ -103,27 +99,29 @@ app.post('/api/assessment', async (req: Request, res: Response) => {
             // Setup telemetry collector
             const collector = await telemetryService.setupTelemetryCollector(appMetadata, bundleName);
 
-            // Start metrics computation
-            await metricsService.computeMetrics(collector, selectedGoals);
+            // Set context dynamically before assessment starts
+            qualityAssessmentService.setContext(collector, goals);
 
-            progressTracker.notifyProgress('Assessment process completed successfully.');
+            // Start quality assessment
+            await qualityAssessmentService.assessQualityGoals();
+
+            progressTracker.notifyProgress('Server: Assessment process completed successfully.');
         } catch (error: any) {
-            console.error('Error during assessment:', error);
-            progressTracker.notifyProgress(`Assessment process failed: ${error.message}`);
-            res.status(500).send({ error: `Assessment process failed: ${error.message}` });
+            console.error('Server: Error during assessment:', error);
+            progressTracker.notifyProgress(`Server: Assessment process failed: ${error.message}`);
+            res.status(500).send({ error: `Server: Assessment process failed: ${error.message}` });
         }
     })();
 });
 
 /**
- * New endpoint to stream assessment progress updates via Server-Sent Events (SSE)
- * for an ongoing assessment
+ * Endpoint to stream assessment progress updates via Server-Sent Events (SSE)
  */
 app.get('/api/progress', (req: Request, res: Response) => {
 
     const { assessmentId } = req.query;
 
-    if (!assessmentId || !assessmentContext[assessmentId as string]) {
+    if (!assessmentId || !assessmentContextStore[assessmentId as string]) {
         res.status(400).send({ error: 'Invalid or expired assessment ID' });
         return;
     }
@@ -144,13 +142,12 @@ app.get('/api/progress', (req: Request, res: Response) => {
 });
 
 /**
- * New endpoint to stream new metric values via Server-Sent Events (SSE)
- * for an ongoing assessment
+ * Endpoint to stream new assessment values via Server-Sent Events (SSE)
  */
-app.get('/api/metrics', (req: Request, res: Response) => {
+app.get('/api/assessments', (req: Request, res: Response) => {
     const { assessmentId } = req.query;
 
-    if (!assessmentId || !assessmentContext[assessmentId as string]) {
+    if (!assessmentId || !assessmentContextStore[assessmentId as string]) {
         res.status(400).send({ error: 'Invalid or expired assessment ID' });
         return;
     }
@@ -159,24 +156,28 @@ app.get('/api/metrics', (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    const context = assessmentContext[assessmentId as string];
+    const context = assessmentContextStore[assessmentId as string];
 
-    metricsService.onMetricsUpdated((metrics) => {
-        const selectedGoalsWithMetrics = context.selectedGoals.map(goal => ({
-            name: goal.name,
-            metrics: goal.metrics.map(metric => ({
-                name: metric.name,
-                acronym: metric.acronym,
-                description: metric.description,
-                value: metrics.find(m => m.acronym === metric.acronym)?.value || 0,
-                unit: metric.unit,
-                history: metrics.find(m => m.acronym === metric.acronym)?.history || []
-            }))
-        }));
-
+    qualityAssessmentService.onAssessmentUpdated((updatedGoals) => {
         const responseData = {
             metadata: context.metadata,
-            selectedGoals: selectedGoalsWithMetrics
+            selectedGoals: updatedGoals.map(goal => ({
+                name: goal.name,
+                description: goal.description,
+                weight: goal.weight,
+                metrics: goal.metrics.map(metric => ({
+                    name: metric.name,
+                    acronym: metric.acronym,
+                    description: metric.description,
+                    value: metric.value,
+                    unit: metric.unit,
+                    history: metric.history
+                })),
+                assessment: goal.assessment ? {
+                    globalScore: goal.assessment.globalScore,
+                    details: goal.assessment.assessments
+                } : null  // Ensure safe access
+            }))
         };
 
         res.write(`data: ${JSON.stringify(responseData)}\n\n`);

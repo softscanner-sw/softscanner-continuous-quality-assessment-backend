@@ -11,3 +11,7 @@ export class ProgressTracker {
         this.eventEmitter.emit('progress', message);
     }
 }
+
+export interface IProgressTrackable {
+    setProgressTracker(progressTracker: ProgressTracker): void;
+}
