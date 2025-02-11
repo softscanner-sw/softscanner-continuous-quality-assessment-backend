@@ -303,18 +303,16 @@ export abstract class InstrumentationBundleInjector {
             return;
         }
 
-        // Prepare the instrumentation bundle's relative path for the <script> element to inject
-        const bundleDestinationParentRelativePath =
-            this.bundleDestinationParentPath.includes(`src${path.sep}`) ?
-                this.bundleDestinationParentPath.split(`src${path.sep}`)[1] : this.bundleDestinationParentPath;
-        let bundleDestinationRelativePath = path.join(bundleDestinationParentRelativePath, this.bundle.fileName);
+        // Compute the relative path from the target HTML page to the bundle
+        const relativePathToBundle = path.relative(path.dirname(this.targetHTMLPagePath), path.join(this.bundleDestinationParentPath, this.bundle.fileName));
 
-        // If running on Windows, make sure to replace the backslashes with slashes
-        if (bundleDestinationRelativePath.includes('\\'))
-            bundleDestinationRelativePath = bundleDestinationRelativePath.replace(/\\/g, '/');
+        // Convert backslashes to forward slashes for cross-platform compatibility in HTML
+        const scriptPath = relativePathToBundle.replace(/\\/g, '/');
+
+        console.log(`Relative path for injection: ${scriptPath}`);
 
         // Preparing the <script> element to inject
-        const bundleScriptTag = `<script src="${bundleDestinationRelativePath}"></script>`;
+        const bundleScriptTag = `<script src="${scriptPath}"></script>`;
 
         // Read and update the target HTML page's content by appending the script to <body>'s content
         const htmlContent = readFileSync(this.targetHTMLPagePath, 'utf8');
@@ -322,7 +320,7 @@ export abstract class InstrumentationBundleInjector {
 
         // Write updates to the file
         writeFileSync(this.targetHTMLPagePath, updatedHtmlContent);
-        console.log(`Injected the instrumentation bundle into ${this.targetHTMLPagePath}`);
+        console.log(`Instrumentation bundle injected successfully into ${this.targetHTMLPagePath}`);
     }
 
     /**
