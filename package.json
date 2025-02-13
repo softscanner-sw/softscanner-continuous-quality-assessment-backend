@@ -1,6 +1,6 @@
 {
   "name": "softscanner-sw-continuous-quality-assessment-web",
-  "version": "2.0.0",
+  "version": "2.5.0",
   "description": "A platform dedicated for the automatic instrumentation of web applications using software observability for the continuous quality assessment of web applications",
   "main": "dist/api/server.js",
   "scripts": {
@@ -48,6 +48,7 @@
     "babel-polyfill": "^6.26.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "mongodb": "^6.13.0",
     "path-browserify": "^1.0.1",
     "terser-webpack-plugin": "^5.3.10",
     "uuid": "^9.0.1",

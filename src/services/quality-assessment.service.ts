@@ -1,5 +1,7 @@
-import { Assessment, AssessmentEngine } from "../core/assessment/assessment-core";
+import path from 'path';
+import { AssessmentEngine } from "../core/assessment/assessment-core";
 import { Goal } from "../core/goals/goals";
+import { ApplicationInstrumentationMetadata } from "../core/instrumentation/instrumentation-core";
 import { Metric } from "../core/metrics/metrics-core";
 import { TelemetryCollector } from "../core/telemetry/telemetry";
 import { MetricsService } from "./metrics.service";
@@ -12,6 +14,7 @@ export class QualityAssessmentService implements IProgressTrackable {
     private assessmentEngine: AssessmentEngine = new AssessmentEngine();
     private assessmentUpdateListeners: ((goals: Goal[]) => void)[] = [];
     private metricsService: MetricsService = new MetricsService();
+    private appInstrumentationMetadata?: ApplicationInstrumentationMetadata;
     private collector?: TelemetryCollector;
     private selectedGoals: Goal[] = [];
     private progressTracker!: ProgressTracker;
@@ -28,11 +31,12 @@ export class QualityAssessmentService implements IProgressTrackable {
     }
 
     /**
-     * Set context (collector and selected goals), allowing dynamic configuration.
+     * Set context (application metadata, bundle name, selected goals, and collector), allowing dynamic configuration.
      */
-    setContext(collector: TelemetryCollector, goals: Goal[]) {
-        this.collector = collector;
+    setContext(appInstrumentationMetadata: ApplicationInstrumentationMetadata, goals: Goal[], collector: TelemetryCollector) {
+        this.appInstrumentationMetadata = appInstrumentationMetadata;
         this.selectedGoals = goals;
+        this.collector = collector;
     }
 
     /**
@@ -49,6 +53,7 @@ export class QualityAssessmentService implements IProgressTrackable {
         }
 
         this.progressTracker.notifyProgress('Quality Assessment Service: Computing new assessments...');
+        console.log('Quality Assessment Service: Computing new assessments...');
 
         // Perform assessment based on new metrics and selected goals
         const assessments = this.assessmentEngine.assessGoals(this.selectedGoals, metrics);
@@ -60,6 +65,18 @@ export class QualityAssessmentService implements IProgressTrackable {
                 goal.addAssessment(assessment);  // Attach assessment to the goal
             }
         });
+
+        // Save assessments to the collector's telemetry data source
+        const appInstrumentationMetadata = this.appInstrumentationMetadata;
+        const bundleName = path.basename(appInstrumentationMetadata?.bundleName!);
+
+        try {
+            await this.collector?.storeAssessments(assessments, { appInstrumentationMetadata });
+        } catch (error) {
+            console.error(`Quality Assessment Service: Failed to store assessments in the collector's data source for bundle ${bundleName}`);
+        }
+
+        console.log(`Quality Assessment Service: Assessments stored in the collector's data source for bundle ${bundleName}`);
 
         // Notify listeners about the updated goals
         this.notifyAssessmentUpdated(assessments.map(a => a.goal));
@@ -78,12 +95,13 @@ export class QualityAssessmentService implements IProgressTrackable {
         }
 
         this.progressTracker.notifyProgress('Quality Assessment Service: Starting quality goal assessment...');
+        console.log('Quality Assessment Service: Starting quality goal assessment...');
 
         // Extract metrics from selected goals
         const selectedMetrics = this.selectedGoals.flatMap(goal => goal.metrics);
 
         // Compute metrics using the metrics service
-        const computedMetrics = await this.metricsService.computeMetrics(this.collector, selectedMetrics);
+        const computedMetrics = await this.metricsService.computeMetrics(this.collector, this.appInstrumentationMetadata!, selectedMetrics);
 
         // Perform assessment based on the computed metrics
         const assessments = this.assessmentEngine.assessGoals(this.selectedGoals, computedMetrics);
@@ -96,8 +114,21 @@ export class QualityAssessmentService implements IProgressTrackable {
             }
         });
 
+        // Save assessments to the collector's telemetry data source
+        const appInstrumentationMetadata = this.appInstrumentationMetadata;
+        const bundleName = path.basename(appInstrumentationMetadata?.bundleName!);
+
+        try {
+            await this.collector?.storeAssessments(assessments, { appInstrumentationMetadata });
+        } catch (error) {
+            console.error(`Quality Assessment Service: Failed to store assessments in the collector's data source for bundle ${bundleName}`);
+        }
+
+        console.log(`Quality Assessment Service: Assessments stored in the collector's data source for bundle ${bundleName}`);
+
         // Notify listeners about the updated goals
         this.notifyAssessmentUpdated(this.selectedGoals);
+        console.log('Quality Assessment Service: Quality goal assessment completed.');
         this.progressTracker.notifyProgress('Quality Assessment Service: Quality goal assessment completed.');
         return this.selectedGoals;
     }

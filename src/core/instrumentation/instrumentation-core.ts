@@ -73,6 +73,16 @@ export abstract class AbstractInstrumentationBundle implements InstrumentationBu
     get files(): Instrumentation[] {
         return this._instrumentationfiles;
     }
+
+    static extractNormalizedAppNameFromBundle(bundleName: string, separator: string = '_'): string {
+        if (!bundleName) {
+            console.warn(`Invalid bundle name: ${bundleName}`);
+            return '';
+        }
+
+        const parts = bundleName.split(separator);
+        return parts.length > 0 ? parts[0].trim() : '';
+    }
 }
 
 /**

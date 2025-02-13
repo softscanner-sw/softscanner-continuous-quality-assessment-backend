@@ -1,8 +1,9 @@
 import { WebSocketServer } from "ws";
 
-import * as path from "path";
-import { TelemetryCollector, TelemetryCollectorConfig, TelemetryStorageEndpoint, TelemetryStorageEndpointType } from "../../../../core/telemetry/telemetry";
-import { TelemetryFileStorageStrategy } from "../../storage/filesystems/filesystems-storage.strategy";
+import { TelemetryCollector, TelemetryCollectorConfig, TelemetryStorageEndpointType } from "../../../../core/telemetry/telemetry";
+import { MongoDBTelemetryDataSource } from "../../datasources/databases/mongodb/mongodb-databases-datasource.strategy";
+import { FileTelemetryDataSource } from "../../datasources/filesystems/filesystems-datasource.strategy";
+import { Assessment } from "../../../../core/assessment/assessment-core";
 
 /**
  * Telemetry collector that uses WebSockets for real-time telemetry data collection.
@@ -75,46 +76,48 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
      * to store telemetry data into files.
      * It can be extended to support other types of storage endpoints.
      */
-    async storeMetrics(): Promise<void> {
-        // If storage endpoints are already configured
-        if (this._config && this._config.storageEndpoints && this._config.storageEndpoints.length > 0) {
-            // Storing metrics for every file storage endpoint
-            const fileStorageEndpoints = this._config.storageEndpoints.filter(storageEndpoint =>
-                storageEndpoint.type == TelemetryStorageEndpointType.FILE);
+    async storeTelemetry(): Promise<void> {
+        if (this._config && this._config.storageEndpoints) {
+            for (const storageEndpoint of this._config.storageEndpoints) {
+                let dataSource;
 
-            fileStorageEndpoints.forEach(async fileStorageEndpoint => {
-                this._telemetryStorageStrategy = new TelemetryFileStorageStrategy(fileStorageEndpoint, {
-                    storageEndpoint: fileStorageEndpoint,
-                    dataFormat: this._config.dataFormat
-                });
+                if (storageEndpoint.type === TelemetryStorageEndpointType.FILE)
+                    dataSource = new FileTelemetryDataSource({ storageEndpoint, dataFormat: 'JSON' });
+                else if (storageEndpoint.type === TelemetryStorageEndpointType.DATABASE) {
+                    if (storageEndpoint.uri.includes('mongo')) {
+                        dataSource = new MongoDBTelemetryDataSource({ storageEndpoint, dataFormat: 'JSON' });
+                    }
+                }
 
-                await this._telemetryStorageStrategy.storeAll(this.telemetryData);
-            });
+                if (dataSource) {
+                    await dataSource.connect();
+                    await dataSource.storeAll(this.telemetryData);
+                    await dataSource.disconnect();
+                }
+            }
         }
+    }
 
-        // Storage endpoints aren't already set, then store telemetry into files by default based on application metadata
-        else {
-            const telemetryDataObject = this.telemetryData[0]; // any telemetry trace object
-            const applicationNormalizedName = telemetryDataObject.attributes["app.metadata.normalizedName"];
-            const telemetryFileName = telemetryDataObject.attributes["app.metadata.instrumentationBundleName"].replace('.bundle.js', '.jsonl');
-            const fileStorageEndpoint: TelemetryStorageEndpoint = {
-                type: TelemetryStorageEndpointType.FILE,
-                name: applicationNormalizedName,
-                uri: path.join(applicationNormalizedName, telemetryFileName)
-            };
+    async storeAssessments(assessments: Assessment[], filter?: any): Promise<void> {
+        if (this._config && this._config.storageEndpoints && filter) {
+            const appInstrumentationMetadata = filter.appInstrumentationMetadata;
+            for (const storageEndpoint of this._config.storageEndpoints) {
+                let dataSource;
 
-            if (!this._config.storageEndpoints)
-                this._config.storageEndpoints = [];
-            this._config.storageEndpoints.push(fileStorageEndpoint);
+                if (storageEndpoint.type === TelemetryStorageEndpointType.FILE)
+                    dataSource = new FileTelemetryDataSource({ storageEndpoint, dataFormat: 'JSON' });
+                else if (storageEndpoint.type === TelemetryStorageEndpointType.DATABASE) {
+                    if (storageEndpoint.uri.includes('mongo')) {
+                        dataSource = new MongoDBTelemetryDataSource({ storageEndpoint, dataFormat: 'JSON' });
+                    }
+                }
 
-            this._telemetryStorageStrategy = new TelemetryFileStorageStrategy(fileStorageEndpoint, {
-                storageEndpoint: fileStorageEndpoint,
-                dataFormat: this._config.dataFormat
-            });
-
-            await this._telemetryStorageStrategy.storeAll(this.telemetryData);
+                if (dataSource) {
+                    await dataSource.connect();
+                    await dataSource.storeAssessments(assessments, { appInstrumentationMetadata });
+                    await dataSource.disconnect();
+                }
+            }
         }
-
-        // Optionally, add logic here to store metrics for other types of storage endpoints if necessary.
     }
 }

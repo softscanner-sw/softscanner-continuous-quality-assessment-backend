@@ -1,4 +1,5 @@
 import { EventEmitter } from "stream";
+import { Assessment } from "../assessment/assessment-core";
 
 /**
  * Enumerates the types of telemetry that can be collected.
@@ -200,9 +201,43 @@ export interface TelemetryStorageEndpoint {
 }
 
 /**
- * Configuration for telemetry storage strategy.
+ * Abstract base class for telemetry data sources.
+ * Defines the basic structure and operations required 
+ * for reading and storing telemetry data.
  */
-export interface TelemetryStorageStrategyConfig {
+export abstract class TelemetryDataSource {
+
+    /**
+     * Initializes the telemetry data source with a specific data source configuration.
+     * @param {TelemetryDataSourceConfig } config - The configuration for the telemetry data source.
+     */
+    constructor(
+        public config: TelemetryDataSourceConfig) { }
+
+
+    abstract connect(): Promise<void>;
+    abstract disconnect(): Promise<void>;
+    abstract read(filter?: any): Promise<any | any[]>;
+
+    /**
+     * Stores a single piece of data.
+     * @param {any} data - The data to store.
+     */
+    abstract store(data: any): Promise<void>;
+
+    /**
+     * Stores an array of data items.
+     * @param {any[]} data - The array of data items to store.
+     */
+    abstract storeAll(data: any[]): Promise<void>;
+
+    abstract storeAssessments(assessments: Assessment[], filter?: any): Promise<void>;
+}
+
+/**
+ * Configuration for telemetry data sources.
+ */
+export interface TelemetryDataSourceConfig {
     storageEndpoint: TelemetryStorageEndpoint, // The concerned storage endpoint.
     dataFormat?: TelemetryDataFormat, // The format of the telemetry data.
 }
@@ -232,7 +267,7 @@ export interface TelemetryCollectorConfig {
  */
 export abstract class TelemetryCollector {
     protected telemetryData: any[] = []; // Generic container for the collected telemetry data
-    protected _telemetryStorageStrategy?: TelemetryStorageStrategy; // The strategy used for storing the collected telemetry data.
+    protected _telemetryDataSource?: TelemetryDataSource; // The data source for reading/storing telemetry data.
     private eventEmitter = new EventEmitter(); // Used to notify listeners upon flushing new data to telemetry backends
 
     constructor(protected _config: TelemetryCollectorConfig) { }
@@ -245,12 +280,12 @@ export abstract class TelemetryCollector {
         this._config = config;
     }
 
-    get telemetryStorageStrategy(): TelemetryStorageStrategy | undefined {
-        return this._telemetryStorageStrategy;
+    get telemetryDataSource(): TelemetryDataSource | undefined {
+        return this._telemetryDataSource;
     }
 
-    set telemetryStorageStrategy(strategy: TelemetryStorageStrategy) {
-        this._telemetryStorageStrategy = strategy;
+    set telemetryDataSource(telemetryDataSource: TelemetryDataSource) {
+        this._telemetryDataSource = telemetryDataSource;
     }
 
     // Event handling methods
@@ -274,7 +309,9 @@ export abstract class TelemetryCollector {
      * Implementations delegate the storage of metrics to the appropriate telemetry storage
      * strategies, based on the provided `TelemetryCollectorConfig`.
      */
-    abstract storeMetrics(): Promise<void>;
+    abstract storeTelemetry(): Promise<void>;
+
+    abstract storeAssessments(assessments: Assessment[], filter?: any): Promise<void>;
 
     /**
      * Flushes telemetry data at regular intervals or based on certain conditions.
@@ -283,7 +320,7 @@ export abstract class TelemetryCollector {
     async flushData(): Promise<void> {
         // By default, simply call storeMetrics() and clear the telemetryData array.
         try {
-            await this.storeMetrics();
+            await this.storeTelemetry();
             this.emit('dataFlushed', this._config.storageEndpoints); // Notify listeners
             this.telemetryData = [];
         } catch (error) {
@@ -314,42 +351,4 @@ export abstract class TelemetryCollector {
 
         console.error("All retry attempts failed.");
     }
-}
-
-/**
- * Abstract base class for telemetry storage strategies.
- * Defines the basic structure and operations required 
- * for storing telemetry data.
- */
-export abstract class TelemetryStorageStrategy {
-
-    /**
-     * Initializes the telemetry storage strategy with a specific storage endpoint and configuration.
-     * @param {TelemetryStorageEndpoint} storageEndpoint - The storage endpoint details.
-     * @param {TelemetryStorageStrategyConfig} config - The configuration for the storage strategy.
-     */
-    constructor(
-        protected storageEndpoint: TelemetryStorageEndpoint,
-        protected config: TelemetryStorageStrategyConfig) {
-    }
-
-    /**
-     * Stores a single piece of data.
-     * @param {any} data - The data to store.
-     */
-    abstract store(data: any): Promise<void>;
-
-    /**
-     * Stores an array of data items.
-     * @param {any[]} data - The array of data items to store.
-     */
-    abstract storeAll(data: any[]): Promise<void>;
-
-    /**
-     * Reads data, optionally based on an identifier.
-     * This method is primarily used data retrieval.
-     * @param {string} [id] - The identifier for the data to read, if available.
-     * @returns {Promise<any | undefined>} The read data, or undefined if not found.
-     */
-    abstract read(id?: string): Promise<any | undefined>;
 }

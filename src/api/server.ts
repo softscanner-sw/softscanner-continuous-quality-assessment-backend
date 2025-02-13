@@ -97,10 +97,10 @@ app.post('/api/assessment', async (req: Request, res: Response) => {
             const bundleName = await instrumentationService.instrument(appMetadata, selectedGoals);
 
             // Setup telemetry collector
-            const collector = await telemetryService.setupTelemetryCollector(appMetadata, bundleName);
+            const collector = await telemetryService.setupTelemetryCollector({ appMetadata, bundleName });
 
             // Set context dynamically before assessment starts
-            qualityAssessmentService.setContext(collector, goals);
+            qualityAssessmentService.setContext({ appMetadata, bundleName }, goals, collector);
 
             // Start quality assessment
             await qualityAssessmentService.assessQualityGoals();

@@ -7,7 +7,7 @@ import { QualityModelService } from "./quality-model.service";
 /**
  * Service to handle the instrumentation process.
  */
-export class InstrumentationService implements IProgressTrackable{
+export class InstrumentationService implements IProgressTrackable {
     private progressTracker!: ProgressTracker;
 
     constructor(
@@ -31,7 +31,7 @@ export class InstrumentationService implements IProgressTrackable{
         if (!this.progressTracker) {
             throw new Error('Progress tracker not set in InstrumentationService.');
         }
-        
+
         console.log('Instrumentation service: Starting instrumentation...');
         this.progressTracker.notifyProgress('Instrumentation service: Starting instrumentation...');
 
@@ -46,15 +46,17 @@ export class InstrumentationService implements IProgressTrackable{
             throw new Error('Instrumentation service: No metrics found for the selected goals.');
 
         // Generate instrumentation files based on the mapped metrics and retrieve the generated bundle
+        console.log('Instrumentation service: Generating instrumentation files...');
         this.progressTracker.notifyProgress('Instrumentation service: Generating instrumentation files...');
         const bundle = await this._instrumentationManager.generateInstrumentation(appMetadata, metrics);
 
         // Inject the retrieved bundle into the project
+        console.log('Instrumentation service: Injecting instrumentation bundle...');
         this.progressTracker.notifyProgress('Instrumentation service: Injecting instrumentation bundle...');
         await this._bundleInjector.injectBundle(appMetadata, bundle);
 
-        this.progressTracker.notifyProgress('Instrumentation service: Instrumentation bundle injection completed successfully!');
         console.log('Instrumentation service: Instrumentation bundle injection completed successfully!');
+        this.progressTracker.notifyProgress('Instrumentation service: Instrumentation bundle injection completed successfully!');
         return bundle.path!!;
     }
 }
