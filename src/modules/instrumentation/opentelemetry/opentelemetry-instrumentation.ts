@@ -10,8 +10,12 @@ import { OpenTelemetryInstrumentationConfig, OpenTelemetryInstrumentationStrateg
 import { OpenTelemetryMetadataSpanProcessingInstrumentationStrategy, OpenTelemetrySessionDataInstrumentationStrategy, OpenTelemetryTracingInstrumentationStrategy, OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy } from "./tracing/opentelemetry-instrumentation-tracing";
 import { OpenTelemetryTracingInstrumentationConfig } from "./tracing/opentelemetry-instrumentation-tracing-core";
 
+/**
+ * Class responsible for generating OpenTelemetry instrumentation files and bundles for an application.
+ * It extends the InstrumentationGenerator to provide telemetry-specific instrumentation for tracing, metrics, etc.
+ */
 export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenerator {
-    /* CONSTRUCTOR */
+    // Constructor for initializing the generator with application metadata, metrics, and telemetry configuration
     constructor(application: ApplicationMetadata,
         metrics: Metric[],
         telemetryConfig: OpenTelemetryInstrumentationConfig
@@ -20,7 +24,10 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         this.telemetryConfig = telemetryConfig;
     }
 
-    /* METHODS */
+    /**
+     * Returns the list of dependencies required for OpenTelemetry instrumentation.
+     * These dependencies are lazily initialized and returned only once.
+     */
     public instrumentationDependencies(): string[] {
         // If the dependencies haven't already been set
         if (this.dependencies.length === 0) {
@@ -50,6 +57,9 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         return this.dependencies;
     }
 
+    /**
+     * Checks if a specific telemetry type (e.g., tracing, logging) is required by the instrumentation.
+     */
     public requiresTelemetryType(telemetryType: TelemetryType): boolean {
         let result = super.requiresTelemetryType(telemetryType);
 
@@ -59,6 +69,9 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         return result;
     }
 
+    /**
+     * Determines whether utility instrumentation files (e.g., for session data, app metadata) are needed.
+     */
     protected requiresUtilityInstrumentationFiles(): boolean {
         let telemetryConfig = null;
         let requires = false;
@@ -71,6 +84,10 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         return requires;
     }
 
+    /**
+     * Generates the necessary instrumentation files for OpenTelemetry tracing.
+     * It handles tracing, session data, metadata processing, and WebSocket-based exportation strategies.
+     */
     public async generateInstrumentationFiles(): Promise<void> {
         // Preparing the application metadata which will be attached to every exported telemetry span
         const appInstrumentationMetadata: ApplicationInstrumentationMetadata = {
@@ -87,7 +104,7 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
 
             // Preparing the instrumentation bundle to export its correspoding metadata
             this.instrumentationBundle = this.createInstrumentationBundle();
-            strategy.applicationMetadata.bundleName = this.instrumentationBundle.fileName;
+            strategy.applicationInstrumentationMetadata.bundleName = this.instrumentationBundle.fileName;
             appInstrumentationMetadata.bundleName = this.instrumentationBundle.fileName;
 
             this.instrumentations.push(...this.instrumentationStrategy.generateInstrumentationFiles());
@@ -120,7 +137,7 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
     }
 
     /**
-     * Exports the generated instrumentation files into their appropriate locations.
+     * Exports the generated instrumentation files to the appropriate directories.
      * 
      * There should be a parent folder for the instrumentation files
      * associated with the application to instrument: `assets/instrumentations/<application-name>`
@@ -180,12 +197,12 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         // Write the index.ts, the main entry point of all main instrumentation files
         fs.writeFileSync(indexFilePath, importStatements);
 
-        console.log('Instrumentation files generated successfully.');
+        console.log('OpenTelemetryInstrumentationGenerator: Instrumentation files generated successfully.');
     }
 
     /**
      * Generates a bundle from the instrumentation files generated
-     * for the test application.
+     * for the test application using Webpack.
      * 
      * There should be a parent folder for the bundles
      * associated with the application to instrument under `assets/bundles/`
@@ -204,7 +221,7 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
 
             compiler.run((err, stats) => {
                 if (err) {
-                    console.error('Webpack compilation error:', err);
+                    console.error('OpenTelemetryInstrumentationGenerator: Webpack compilation error:', err);
                     reject(err);
                     return;
                 }
@@ -215,12 +232,16 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
                     children: false // Hide child information
                 }));
 
-                console.log('Instrumentation bundle generated successfully.');
+                console.log('OpenTelemetryInstrumentationGenerator: Instrumentation bundle generated successfully.');
                 resolve();
             });
         })
     }
 
+    /**
+     * Generates the path to tsconfig.json of the OpenTelemetry instrumentation project
+     * @returns - The path to tsconfig.json of the OpenTelemetry instrumentation project
+     */
     private getTypeScriptConfigPath(): string {
         const projectRootPath = path.resolve(__dirname, '../../../../'); // this project's root folder path
         const instrumentationStrategy = this._instrumentationStrategy as OpenTelemetryInstrumentationStrategy;
@@ -228,6 +249,10 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         return path.join(projectRootPath, instrumentationStrategy.projectRootPath, 'tsconfig.json');
     }
 
+    /**
+     * Generates the content of tsconfig.json of the OpenTelemetry instrumentation project
+     * @returns - The content of tsconfig.json of the OpenTelemetry instrumentation project
+     */
     private async generateTypeScriptConfig(): Promise<void> {
         const tsConfigPath = this.getTypeScriptConfigPath();
         const tsConfig = {
@@ -246,6 +271,10 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         fs.writeFileSync(tsConfigPath, JSON.stringify(tsConfig, null, 2));
     }
 
+    /**
+     * Generates the instrumentation bundle from the instrumentation files of the OpenTelemetry project
+     * @returns - The instrumentation bundle from the instrumentation files of the OpenTelemetry project
+     */
     private createInstrumentationBundle(): InstrumentationBundle {
         const instrumentationStrategy = this._instrumentationStrategy as OpenTelemetryInstrumentationStrategy;
         const projectRootPath = path.resolve(__dirname, '../../../../'); // this project's root folder path
@@ -266,6 +295,12 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         };
     }
 
+    /**
+     * Generates the Webpack config file for the generation of the instrumentation bundle
+     * of the OpenTelemetry project's instrumentation files
+     * @returns - the Webpack config file for the generation of the instrumentation bundle
+     * of the OpenTelemetry project's instrumentation files
+     */
     private generateWebPackConfig() {
         const instrumentationStrategy = this._instrumentationStrategy as OpenTelemetryInstrumentationStrategy;
         const projectRootPath = path.resolve(__dirname, '../../../../'); // this project's root folder path

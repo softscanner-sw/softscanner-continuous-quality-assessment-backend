@@ -1,29 +1,30 @@
 
 /**
- * A utility class providing static methods for common operations such as
- * enum manipulation and string transformations.
+ * Utility class containing static methods for various helper operations.
+ * These methods are used for common tasks like enum manipulation and string transformations.
  */
 export class Utils {
     /**
-     * Retrieves the string values from an enumeration.
-     * @param enumeration The enumeration from which to extract string values.
-     * @returns An array of string values found in the enumeration.
+     * Retrieves all string values from an enumeration.
+     * Useful for extracting only the string-based keys in a mixed enum (e.g., both numeric and string values).
+     * @param enumeration The enum from which to extract string values.
+     * @returns An array of string values present in the enum.
      */
-
     public static getEnumStringValues(enumeration: any): string[] {
         let enumValues: string[] = Object.values(enumeration);
-        // Filter out the numeric values to only get the string representations
+
+        // Filter to keep only string values (exclude numeric keys).
         enumValues = enumValues.filter(value => typeof value === 'string');
 
         return enumValues;
-        // return Object.keys(enumeration).filter(key => !Number.isFinite(enumeration[key]));
     }
 
     /**
      * Converts an enum string value to a lowercase string without any separators.
-     * Typically used to normalize enum keys for comparison or storage.
+     * This is typically used to normalize enum keys for comparison or storage.
+     * Example: "USER_INTERACTION" becomes "userinteraction".
      * @param enumValue The enum string value to be converted.
-     * @returns A lowercase, separator-free string representation of the enum value.
+     * @returns A normalized string: lowercase and separator-free.
      */
     public static convertEnumValueToLowercaseWithNoSeparator(enumValue: string) {
         return enumValue.toLowerCase().replace(/_/g, '');

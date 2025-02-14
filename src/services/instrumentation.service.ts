@@ -5,9 +5,11 @@ import { IProgressTrackable, ProgressTracker } from "./progress-tracker.service"
 import { QualityModelService } from "./quality-model.service";
 
 /**
- * Service to handle the instrumentation process.
+ * Service to handle the instrumentation process, including generating and injecting
+ * instrumentation bundles based on the selected quality goals and application metadata.
  */
 export class InstrumentationService implements IProgressTrackable {
+    // Progress tracker to track and notify about progress updates during instrumentation generation and bundling
     private progressTracker!: ProgressTracker;
 
     constructor(
@@ -15,17 +17,20 @@ export class InstrumentationService implements IProgressTrackable {
         private _bundleInjector: BundleInjector = new BundleInjector()) {
     }
 
+    /**
+     * Sets the progress tracker to monitor and report progress during the instrumentation process.
+     * @param progressTracker - An instance of the ProgressTracker.
+     */
     setProgressTracker(progressTracker: ProgressTracker): void {
         this.progressTracker = progressTracker;
     }
 
     /**
-     * Triggers the instrumentation process.
-     * It starts with extracting metrics from the selected goals and based on application metadata
-     * to generate and inject instrumentation agents.
-     * @param appMetadata The metadata of the application being instrumented.
-     * @param selectedGoals The selected quality goals.
-     * @returns the instrumentation bundle file name
+     * Triggers the instrumentation process, starting with extracting metrics from
+     * the selected goals and generating an instrumentation bundle that is later injected into the project.
+     * @param appMetadata - Metadata about the application being instrumented.
+     * @param selectedGoals - List of quality goals selected for instrumentation.
+     * @returns A promise that resolves with the name of the generated instrumentation bundle.
      */
     async instrument(appMetadata: ApplicationMetadata, selectedGoals: string[]): Promise<string> {
         if (!this.progressTracker) {
@@ -41,7 +46,7 @@ export class InstrumentationService implements IProgressTrackable {
 
         console.log('Instrumentation service: Mapped Metrics:', metrics.map(metric => metric.name));
 
-        // Check if metrics are available
+        // Check if any metrics were found; throw an error if none are available.
         if (metrics.length === 0)
             throw new Error('Instrumentation service: No metrics found for the selected goals.');
 
@@ -50,7 +55,7 @@ export class InstrumentationService implements IProgressTrackable {
         this.progressTracker.notifyProgress('Instrumentation service: Generating instrumentation files...');
         const bundle = await this._instrumentationManager.generateInstrumentation(appMetadata, metrics);
 
-        // Inject the retrieved bundle into the project
+        // Inject the generated bundle into the project.
         console.log('Instrumentation service: Injecting instrumentation bundle...');
         this.progressTracker.notifyProgress('Instrumentation service: Injecting instrumentation bundle...');
         await this._bundleInjector.injectBundle(appMetadata, bundle);

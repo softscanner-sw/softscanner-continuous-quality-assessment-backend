@@ -1,14 +1,22 @@
 import { Collection, Db, MongoClient } from 'mongodb';
 import path from 'path';
+import { Assessment } from '../../../../../core/assessment/assessment-core';
 import { AbstractInstrumentationBundle } from '../../../../../core/instrumentation/instrumentation-core';
 import { DatabaseTelemetryDataSource } from '../databases-datasource.strategy';
-import { Assessment } from '../../../../../core/assessment/assessment-core';
 
+/**
+ * MongoDB-based telemetry data source.
+ * Handles telemetry data storage and retrieval using MongoDB.
+ */
 export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
     private client!: MongoClient;
     private db!: Db;
     private collection!: Collection;
 
+    /**
+     * Creates a connection to the database using a MongoDB client and initializes the root collection.
+     * The database's metadata is provided in the storage endpoint, encapsulated in the data source's configuration.
+     */
     protected async createConnection(): Promise<void> {
         this.client = new MongoClient(this.config.storageEndpoint.uri);
         await this.client.connect();
@@ -17,6 +25,9 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
         console.log(`MongoDB Telemetry DataSource: Connected to MongoDB at ${this.config.storageEndpoint.uri}`);
     }
 
+    /**
+     * Closes the connection to the MongoDB database.
+     */
     protected async closeConnection(): Promise<void> {
         if (this.client) {
             await this.client.close();
@@ -24,6 +35,12 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
         }
     }
 
+    /**
+     * Retrieves the document corresponding to a specific application by its normalized name.
+     * If the document does not exist, it creates a new one.
+     * @param normalizedAppName - The normalized name of the target application.
+     * @returns The MongoDB document corresponding to the target application's normalized name.
+     */
     private async getApplicationDocument(normalizedAppName: string) {
         let appDoc = await this.collection.findOne({ normalizedAppName });
         if (!appDoc) {
@@ -34,6 +51,11 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
         return appDoc;
     }
 
+    /**
+     * Reads telemetry data associated with a specific application and its instrumentation bundle.
+     * @param filter - Metadata about the application and its instrumentation bundle.
+     * @returns An array of telemetry data associated with the target application's bundle.
+     */
     async read(filter: any = {}): Promise<any | any[]> {
         let telemetryData: any[] = [];
         if (filter) {
@@ -63,6 +85,11 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
         return telemetryData;
     }
 
+    /**
+     * Stores a single telemetry data item in the database.
+     * If the instrumentation bundle already exists, it appends the new data; otherwise, it creates a new bundle.
+     * @param data - The telemetry data to store.
+     */
     async store(data: any): Promise<void> {
         const normalizedAppName: string = data.attributes['app.metadata.normalizedName'];
         const bundleName: string = data.attributes['app.metadata.instrumentationBundleName'];
@@ -103,6 +130,11 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
         await this.collection.insertOne(data);
     }
 
+    /**
+     * Stores multiple telemetry data items in the database.
+     * If the instrumentation bundle already exists, it appends the new data; otherwise, it creates a new bundle.
+     * @param data - An array of telemetry data to store.
+     */
     async storeAll(data: any[]): Promise<void> {
         if (!data.length || data.length <= 0) return;
 
@@ -145,6 +177,11 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
         }
     }
 
+    /**
+     * Stores quality assessments in the database for a specific instrumentation bundle.
+     * @param assessments - An array of assessment objects to store.
+     * @param filter - Metadata about the application and its instrumentation bundle.
+     */
     async storeAssessments(assessments: Assessment[], filter?: any): Promise<void> {
         if (filter && filter.appInstrumentationMetadata) {
             const assessmentDocs = assessments.map(assessment => ({

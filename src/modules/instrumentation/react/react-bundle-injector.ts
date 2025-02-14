@@ -4,18 +4,17 @@ import { ApplicationMetadata } from "../../../core/application/application-metad
 import { InstrumentationBundle, InstrumentationBundleInjector } from "../../../core/instrumentation/instrumentation-core";
 
 /**
- * An injector specifically tailored for injecting instrumentation bundles into React applications.
- * This class extends the generic InstrumentationBundleInjector to provide React-specific implementation
- * of bundle injection, considering the standard project structure of React applications.
+ * Injector for React applications that handles the injection of instrumentation bundles.
+ * This class extends the generic InstrumentationBundleInjector and provides React-specific logic.
  */
 export class ReactInstrumentationBundleInjector extends InstrumentationBundleInjector {
 
     /**
-     * Initializes a new instance of the injector for React applications.
-     * @param application The metadata of the React application where the bundle will be injected.
+     * Initializes a new instance of the ReactInstrumentationBundleInjector.
+     * @param application Metadata about the React application being instrumented.
      * @param bundle The instrumentation bundle to be injected.
-     * @param bundleDestinationParentPath (optional) The relative path within the React project where the bundle will be copied. Defaults to "src/assets/js/bundles".
-     * @param targetHTMLPagePath (optional) The relative path to the HTML page (usually index.html) where the script tag referencing the bundle will be injected. Defaults to "src/index.html".
+     * @param bundleDestinationParentPath Optional. Default is "public/assets/js/bundles".
+     * @param targetHTMLPagePath Optional. Default is "public/index.html".
      */
     constructor(
         application: ApplicationMetadata,
@@ -30,11 +29,11 @@ export class ReactInstrumentationBundleInjector extends InstrumentationBundleInj
     }
 
     /**
-     * Prepares the Angular application for the bundle injection.
-     * This step includes verifying the existence of the bundle and preparing the destination path.
+     * Prepares the React project for bundle injection.
+     * This involves verifying the bundle path and creating the destination directory if it doesn't exist.
      */
     protected async preInject(): Promise<void> {
-        console.log("Preparing for bundle injection...");
+        console.log("React Instrumentation Bundle Injector: Preparing for bundle injection...");
 
         if (this.bundle.path) {
             try {
@@ -52,27 +51,27 @@ export class ReactInstrumentationBundleInjector extends InstrumentationBundleInj
                 // Compute the full destination path for the bundle.
                 const destinationFullPath = path.join(this.bundleDestinationParentPath, this.bundle.fileName);
 
-                console.log(`Copying bundle at ${this.bundle.path}...`);
+                console.log(`React Instrumentation Bundle Injector: Copying bundle at ${this.bundle.path}...`);
 
                 // Copying bundle to destination
                 await fs.copyFile(this.bundle.path, destinationFullPath);
 
-                console.log(`Copied the bundle to ${destinationFullPath}`);
+                console.log(`React Instrumentation Bundle Injector: Copied the bundle to ${destinationFullPath}`);
 
             } catch (error: any) {
-                console.error(`Error during bundle preparation: ${error}`);
+                console.error(`React Instrumentation Bundle Injector: Error during bundle preparation: ${error}`);
             }
         }
         else
-            console.error(`Bundle doesn't have a valid path: ${this.bundle.path}`);
+            console.error(`React Instrumentation Bundle Injector: Bundle doesn't have a valid path: ${this.bundle.path}`);
     }
 
     /**
-     * Defines any cleanup or additional steps after injection.
-     * For React applications, this might involve tasks like cache busting or further configuration.
+     * Post-injection steps for React applications.
+     * Can be used for tasks like cache busting or further configuration adjustments.
      */
     protected async postInject(): Promise<void> {
         // Any post-injection logic specific to React applications.
-        console.log('Finished bundle injection.');
+        console.log('React Instrumentation Bundle Injector: Finished bundle injection.');
     }
 }

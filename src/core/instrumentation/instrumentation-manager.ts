@@ -6,49 +6,61 @@ import { TelemetryExportDestinationType, TelemetryExportProtocol, TelemetryType,
 import { InstrumentationBundle } from "./instrumentation-core";
 
 /**
- * Handles the generation of instrumentation files based on the mapped metrics.
+ * The `InstrumentationManager` is responsible for configuring the generation of specific instrumentation files
+ * and bundling them for an application based on selected metrics and their telemetry requirements.
  */
 export class InstrumentationManager {
     /**
-     * Generates the instrumentation files and bundles them for the given application.
-     * @param appMetadata The metadata of the application being instrumented.
-     * @param metrics The metrics to be instrumented.
+     * Generates an instrumentation bundle for the given application and metrics.
+     * This includes creating instrumentation configuration, generating instrumentation files,
+     * and bundling them into a deployable format.
+     * 
+     * @param appMetadata Metadata of the application being instrumented (name, type, path, etc.).
+     * @param metrics The list of metrics that define the telemetry to be collected.
+     * @returns A promise that resolves to an `InstrumentationBundle` containing the generated files.
      */
     public async generateInstrumentation(appMetadata: ApplicationMetadata, metrics: Metric[]): Promise<InstrumentationBundle> {
-        console.log('Generating instrumentation...');
+        console.log('Instrumentation Manager: Generating instrumentation...');
 
-        // Determine the required telemetry types based on the provided metrics
+        // Collect and deduplicate all required telemetry types from the provided metrics
         const telemetryTypes: TelemetryType[] = Array.from(
             new Set(metrics.flatMap(metric => metric.requiredTelemetry))
         );
 
-        // Define the OpenTelemetry configuration
+        // Define the instrumentation configuration (OpenTelemetry tracing configuration by default)
         const telemetryConfig = new OpenTelemetryTracingInstrumentationConfig(
             telemetryTypes,
             [{
-                type: TelemetryExportDestinationType.LOCAL_COLLECTOR,
-                protocol: TelemetryExportProtocol.WEB_SOCKETS,
-                url: 'ws://localhost:8081'
+                type: TelemetryExportDestinationType.LOCAL_COLLECTOR,   // Set the destination to a local collector
+                protocol: TelemetryExportProtocol.WEB_SOCKETS,          // Use WebSockets as the transport protocol
+                url: 'ws://localhost:8081'                             // WebSocket server for telemetry collection
             }],
-            new OpenTelemetryAutomaticTracingOptions({
-                enabled: true,
-                events: UserInteractionEvent.getMainEvents()
-            },
-                false, false, false, true, true)
+            new OpenTelemetryAutomaticTracingOptions(
+                {
+                    enabled: true,  // Enable automatic tracing
+                    events: UserInteractionEvent.getMainEvents()  // Specify main user interaction events to capture
+                },
+                false, // Tracing for page loads
+                false, // Fetch API calls tracking
+                false, // Ajax Requests tracking
+                true,  // Application Session ID tracking
+                true   // Application Metadata tracking
+            )
         );
 
-        // Create an instance of the OpenTelemetry instrumentation generator
+        // Create an instance of an instrumentation generator with the given configuration (OpenTelemetry instrumentation generator by default)
         const generator = new OpenTelemetryInstrumentationGenerator(appMetadata, metrics, telemetryConfig);
 
-        // Generate the instrumentation files
+        // Generate instrumentation files based on the defined metrics and telemetry types
         await generator.generateInstrumentationFiles();
 
-        // Bundle the generated instrumentation files
+        // Bundle the generated instrumentation files for deployment
         await generator.generateInstrumentationBundle();
 
+        // Retrieve the generated instrumentation bundle
         const bundle = generator.getInstrumentationBundle();
 
-        console.log('Instrumentation generation completed successfully!');
+        console.log('Instrumentation Manager: Instrumentation generation completed successfully!');
 
         return bundle;
     }

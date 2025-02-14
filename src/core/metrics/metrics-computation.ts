@@ -3,61 +3,99 @@ import { ApplicationInstrumentationMetadata } from "../instrumentation/instrumen
 import { TelemetryDataSource, TelemetryStorageEndpoint, TelemetryStorageEndpointType } from "../telemetry/telemetry";
 import { Metric } from "./metrics-core";
 
+/**
+ * MetricsComputer class handles metric computations based on telemetry data.
+ * It listens for telemetry data updates and recalculates metrics accordingly.
+ */
 export class MetricsComputer {
     private eventEmitter = new EventEmitter(); // Used to notify listeners upon computing new metric values
 
+    /**
+     * Constructs a new MetricsComputer instance.
+     * @param metrics - Array of Metric objects to be computed.
+     * @param dataSource - Telemetry data source for retrieving telemetry data.
+     */
     constructor(private metrics: Metric[], private dataSource: TelemetryDataSource) { }
 
-    // Event handling methods
+    /* Event handling methods */
+
+    /**
+     * Registers a listener for the `metricsComputed` event.
+     * @param event - The event `metricsComputed`.
+     * @param listener - The callback function to execute when the event is emitted.
+     */
     on(event: 'metricsComputed', listener: (metrics: Metric[]) => void): void {
         this.eventEmitter.on(event, listener);
     }
 
+    /**
+     * Emits the `metricsComputed` event with the specified metrics.
+     * @param event - The event `metricsComputed`.
+     * @param metrics - The array of metrics that were computed.
+     */
     emit(event: 'metricsComputed', metrics: Metric[]): void {
         this.eventEmitter.emit(event, metrics);
     }
 
     /**
-     * Handles new telemetry data flushes.
+     * Handles new telemetry data flushes, triggering metric computation and notifying listeners.
+     * @param storageEndpoint - The telemetry storage endpoint containing the telemetry data.
+     * @param appInstrumentationMetadata - Metadata related to the application and its instrumentation bundle.
      */
     async onTelemetryUpdate(storageEndpoint: TelemetryStorageEndpoint, appInstrumentationMetadata: ApplicationInstrumentationMetadata): Promise<void> {
         console.log(`MetricsComputer: Processing telemetry data at ${storageEndpoint.uri}`);
-        this.computeMetrics(storageEndpoint, appInstrumentationMetadata); // Compute Metrics
-        this.emit('metricsComputed', this.metrics); // Notify listeners of new metric data
+
+        // Compute metrics based on telemetry data
+        this.computeMetrics(storageEndpoint, appInstrumentationMetadata);
+
+        // Notify listeners of new metric data
+        this.emit('metricsComputed', this.metrics);
     }
 
+    /**
+     * Computes the values of the metrics using telemetry data from the specified storage endpoint.
+     * @param storageEndpoint - The telemetry storage endpoint.
+     * @param appInstrumentationMetadata - Metadata related to the application and its instrumentation bundle.
+     */
     async computeMetrics(storageEndpoint: TelemetryStorageEndpoint, appInstrumentationMetadata: ApplicationInstrumentationMetadata): Promise<void> {
         try {
-            await this.dataSource.connect(); // Ensure connection (for database data sources)
+            // Connect to the telemetry data source (e.g., database)
+            await this.dataSource.connect();
 
-            // Read telemetry data from data source
+            // Retrieve telemetry data from data source
             const telemetryData = await this.getTelemetryData(storageEndpoint, appInstrumentationMetadata);
 
-            // console.log(`MetricsComputer: Retrieved Telemetry Data: ${telemetryData}`);
-
-            /* Compute metrics using the telemetry data */
-            // Reset metric values before recalculating
+            // Reset the values of all metrics before recomputing
             this.metrics.forEach(metric => metric.resetValue());
 
-            // Recompute metrics
+            // Compute the new values for each metric using the telemetry data
             this.metrics.forEach(metric => {
                 metric.computeValue(telemetryData);
                 console.log(`MetricsComputer: Metric "${metric.name}" computed with value: ${metric.value}`);
             });
         } finally {
-            await this.dataSource.disconnect(); // Properly close the connection (for datbase data sources)
+            // Disconnect from the telemetry data source to ensure proper resource cleanup
+            await this.dataSource.disconnect();
         }
     }
 
+    /**
+     * Retrieves telemetry data from the specified storage endpoint.
+     * @param storageEndpoint - The telemetry storage endpoint.
+     * @param appInstrumentationMetadata - Metadata related to the application and its instrumentation bundle.
+     * @returns The retrieved telemetry data.
+     */
     private async getTelemetryData(storageEndpoint: TelemetryStorageEndpoint, appInstrumentationMetadata: ApplicationInstrumentationMetadata) {
         let telemetryData;
 
-        if (storageEndpoint.type === TelemetryStorageEndpointType.DATABASE) { // for databases
+        if (storageEndpoint.type === TelemetryStorageEndpointType.DATABASE) {
+            // Handle database-specific data retrieval (e.g., MongoDB)
             if (storageEndpoint.uri.includes('mongo')) {
                 telemetryData = await this.dataSource.read({ appInstrumentationMetadata });
             }
-        } else{
-            const data = await this.dataSource.read(); // for files
+        } else {
+            // Handle file-based telemetry data retrieval
+            const data = await this.dataSource.read();
             telemetryData = data.telemetryData;
         }
 

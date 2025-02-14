@@ -9,33 +9,36 @@ import { DependencyManager } from "../util/dependency-management";
  * Represents a single file of source code to be used in instrumentation.
  */
 export interface Instrumentation {
-    fileName: string; // The name of the file, including its extension.
-    content: string; // The source code content of the file.
-    path?: string; // The absolute path of the instrumentation file
-    parentPath?: string; // The absolute path of the instrumentation file's parent folder.
-    srcPath?: string; // The absolute path of the instrumentation file's root src/ folder
-    projectRootPath?: string // The absolute path of the instrumented project's root folder
-}
-
-export type ApplicationInstrumentationMetadata = {
-    appMetadata: ApplicationMetadata,
-    bundleName: string
+    fileName: string;         // The name of the file, including its extension (e.g., "instrumentation.js").
+    content: string;          // The source code content of the instrumentation file.
+    path?: string;            // The absolute path of the file on the filesystem.
+    parentPath?: string;      // The absolute path of the parent directory of the file.
+    srcPath?: string;         // The absolute path of the src/ directory where the file is located.
+    projectRootPath?: string; // The absolute path of the root directory of the instrumented project.
 }
 
 /**
- * Represents the structure of an instrumentation bundle
+ * Represents application metadata and name/path of the generated instrumentation bundle
+ */
+export type ApplicationInstrumentationMetadata = {
+    appMetadata: ApplicationMetadata;  // Metadata describing the application (e.g., name, type, technology).
+    bundleName: string;                // Name of the generated instrumentation bundle.
+};
+
+/**
+ * Represents the structure of an instrumentation bundle.
  */
 export interface InstrumentationBundle {
-    fileName: string;// The name of the bundle file, including its extension.
-    files: Instrumentation[]; // The instrumentation files bundled by this bundle
-    path?: string; // The absolute path of the instrumentation bundle file
-    parentPath?: string; // The absolute path of the instrumentation bundle file's parent folder.
-    projectRootPath?: string; // The absolute path of the instrumented project's root folder
-    creationDate?: string; // The creation date of the bundle
+    fileName: string;          // The name of the bundle file (e.g., "bundle.js").
+    files: Instrumentation[];  // An array of instrumentation files contained in the bundle.
+    path?: string;             // Absolute path of the bundle on the filesystem.
+    parentPath?: string;       // Parent directory of the bundle file.
+    projectRootPath?: string;  // Root directory of the instrumented project.
+    creationDate?: string;     // The date the bundle was created.
 }
 
 /**
- * Abstract class that provides a base for instrumentation bundles.
+ * Abstract class that provides a base for handling instrumentation bundles.
  * It encapsulates common properties and getters for subclasses.
  */
 export abstract class AbstractInstrumentationBundle implements InstrumentationBundle {
@@ -46,34 +49,58 @@ export abstract class AbstractInstrumentationBundle implements InstrumentationBu
         protected _parentPath?: string,
         protected _projectRootPath?: string,
         protected _creationDate?: string,
-    ) {
+    ) { }
 
-    }
+    /* Getters of properties */
 
+    /**
+     * Gets the file name of the instrumentation bundle
+     */
     get fileName() {
         return this._fileName;
     }
 
+    /**
+     * Gets the file path of the instrumentation bundle
+     */
     get path() {
         return this._path;
     }
 
+    /**
+     * Gets the parent folder path of the instrumentation bundle
+     */
     get parentPath() {
         return this._parentPath;
     }
 
+    /**
+     * Gets the project root path of the instrumentation project from which the bundle is generated
+     */
     get projectRootPath() {
         return this._projectRootPath;
     }
 
+    /**
+     * Gets the creation data of the instrumentation bundle
+     */
     get creationDate() {
         return this._creationDate;
     }
 
+    /**
+     * Gets the instrumentation files bundled into this instrumentation bundle
+     */
     get files(): Instrumentation[] {
         return this._instrumentationfiles;
     }
 
+    /**
+     * Extracts the normalized application name from the bundle name.
+     * @param bundleName The bundle file name.
+     * @param separator Character used to split the bundle name (default: '_').
+     * @returns Normalized application name (e.g., "my_app" -> "my").
+     */
     static extractNormalizedAppNameFromBundle(bundleName: string, separator: string = '_'): string {
         if (!bundleName) {
             console.warn(`Invalid bundle name: ${bundleName}`);
@@ -96,7 +123,7 @@ export class DefaultInstrumentationBundle extends AbstractInstrumentationBundle 
 }
 
 /**
- * Defines a strategy for generating instrumentation files.
+ * An interface that defines a strategy for generating instrumentation files.
  * Concrete implementations will specify how files are generated based on the strategy.
  */
 export interface InstrumentationStrategy {
@@ -105,16 +132,16 @@ export interface InstrumentationStrategy {
 
 /**
  * Abstract base class for instrumentation strategies.
- * Provides common attributes and utility methods for concrete strategy implementations.
+ * It defines the core logic for instrumentation strategies, such as generating instrumentation files,
+ * constants, and import statements.
  */
 export abstract class AbstractInstrumentationStrategy implements InstrumentationStrategy {
-    /* ATTRIBUTES */
     protected _projectRootPath: string; // Root path for the application's instrumentation files
     protected _srcPath: string; // Source directory for the application's instrumentation files
-    /* CONSTRUCTOR */
+
     constructor(
-        protected _config: TelemetryConfig,
-        protected _application: ApplicationMetadata,
+        protected _config: TelemetryConfig, // Configuration for telemetry collection.
+        protected _application: ApplicationMetadata, // Metadata of the target application.
         protected _instrumentationFilesRootFolder: string = path.join('assets', 'instrumentations'),
         protected _instrumentationBundleRootFolder: string = path.join('assets', 'bundles')
     ) {
@@ -122,35 +149,66 @@ export abstract class AbstractInstrumentationStrategy implements Instrumentation
         this._srcPath = path.join(this._projectRootPath, 'src');
     }
 
-    /* METHODS */
-    // Getters for accessing strategy attributes.
+
+    /* Getters for accessing strategy attributes */
+
+    /**
+     * Gets the metadata of the target application
+     */
     get application(): ApplicationMetadata {
         return this._application;
     }
 
+    /**
+     * Gets the configuration for telemetry collection
+     */
     get config(): TelemetryConfig {
         return this._config;
     }
 
+    /**
+     * Gets the root folder path of the instrumentation project
+     */
     get projectRootPath(): string {
         return this._projectRootPath;
     }
 
+    /**
+     * Gets the source folder path of the instrumentation project
+     */
     get srcPath(): string {
         return this._srcPath;
     }
 
+    /**
+     * Gets the root folder path of all instrumentation projects
+     */
     get instrumentationFilesRootFolder(): string {
         return this._instrumentationFilesRootFolder;
     }
 
+    /**
+     * Gets the root folder path of all instrumentation bundles
+     */
     get instrumentationBundleRootFolder(): string {
         return this._instrumentationBundleRootFolder;
     }
 
-    // Abstract methods that subclasses must implement.
+    /* Abstract methods that subclasses must implement */
+
+    /**
+     * Abstract method for the generation of instrumentation files for the instrumentation project
+     */
     public abstract generateInstrumentationFiles(): Instrumentation[];
+
+    /**
+     * Abstract method for the generation of the necessary importations for the instrumentation files
+     */
     public abstract generateImportations(): string;
+
+    /**
+     * Abstract method for the generation of constant variables in the instrumentation files
+     */
     public abstract generateConstants(): string;
 }
 
@@ -166,14 +224,14 @@ export class DefaultInstrumentationStrategy implements InstrumentationStrategy {
 
 /**
  * Abstract base class for an instrumentation generator.
- * Encapsulates the common functionality required to generate and bundle instrumentation files.
+ * It defines the blueprint for generating and managing instrumentation files and bundles.
  */
 export abstract class InstrumentationGenerator {
-    protected instrumentations: Instrumentation[] = []; // The generated instrumentation files.
-    protected dependencies: string[] = []; // The dependencies required for the instrumentation.
-    protected telemetryConfig?: TelemetryConfig; // Configuration for telemetry collection.
-    protected _instrumentationStrategy: InstrumentationStrategy = new DefaultInstrumentationStrategy(); // Strategy for generating instrumentation files.
-    protected instrumentationBundle: InstrumentationBundle = new DefaultInstrumentationBundle(); // The generated instrumentation bundle.
+    protected instrumentations: Instrumentation[] = []; // Array of generated instrumentation files.
+    protected dependencies: string[] = [];              // Array of required dependencies for instrumentation.
+    protected telemetryConfig?: TelemetryConfig;        // Configuration for telemetry.
+    protected _instrumentationStrategy: InstrumentationStrategy = new DefaultInstrumentationStrategy();
+    protected instrumentationBundle: InstrumentationBundle = new DefaultInstrumentationBundle();
 
     /**
      * Constructs an instance of the InstrumentationGenerator.
@@ -181,32 +239,48 @@ export abstract class InstrumentationGenerator {
      * @param metrics An array of metrics that determine the types of telemetry needed.
      */
     constructor(
-        protected application: ApplicationMetadata,
-        protected metrics: Metric[] // obtained through a MetricsMapper instance
+        protected application: ApplicationMetadata,     // Metadata of the target application.
+        protected metrics: Metric[]                     // Metrics mapped to required telemetry.
     ) { }
 
-    // Getters and setters for accessing and updating the instrumentation strategy.
+    /* Getters and setters for accessing and updating the instrumentation strategy */
+
+    /**
+     * Gets the instrumentation strategy of the instrumentation generator
+     */
     get instrumentationStrategy() {
         return this._instrumentationStrategy;
     }
 
+    /**
+     * Sets the instrumentation strategy of the instrumentation generator
+     */
     set instrumentationStrategy(strategy: InstrumentationStrategy) {
         this._instrumentationStrategy = strategy;
     }
 
     /**
-     * Determines if the generator requires a specific type of telemetry.
-     * @param telemetryType The type of telemetry to check for.
-     * @returns A boolean indicating if the specified telemetry type is required.
+     * Sets a new telemetry configuration for this instrumentation generator
+     * @param telemetryConfig - A new telemetry configuration
+     */
+    public configureTelemetry(telemetryConfig: TelemetryConfig): void {
+        this.telemetryConfig = telemetryConfig;
+    }
+
+    /**
+     * Checks if the generator requires a specific type of telemetry.
+     * @param telemetryType The type of telemetry to check for (e.g., "tracing", "metrics").
+     * @returns true if the telemetry type is required.
      */
     public requiresTelemetryType(telemetryType: TelemetryType): boolean {
         return this.metrics.some(metric => metric.hasRequiredTelemetry(telemetryType));
     }
 
-    public configureTelemetry(telemetryConfig: TelemetryConfig): void {
-        this.telemetryConfig = telemetryConfig;
-    }
-
+    /**
+     * Checks if the necessary dependencies are installed for the instrumentation generator,
+     * And if not ensures they are installed.
+     * @returns - true if all the necessary dependencies are installed and validated, false otherwise
+     */
     public async validateDependencies(): Promise<boolean> {
         if (!DependencyManager.areDependenciesInstalled(this.instrumentationDependencies())) {
             console.log("Some dependencies are missing. Attempting to install...");
@@ -225,6 +299,10 @@ export abstract class InstrumentationGenerator {
         return this.instrumentations;
     }
 
+    /**
+     * Retrieves the instrumentation bundle generated by this generator.
+     * @returns - An instrumentation bundle of the instrumentation files created by this instrumentation generator
+     */
     public getInstrumentationBundle(): InstrumentationBundle {
         return this.instrumentationBundle;
     }
@@ -249,18 +327,21 @@ export abstract class InstrumentationGenerator {
     }
 
     /**
+     * An abstract method to define the dependency names for the instrumentation generator
      * Must be implemented to return a list of dependency names required for the instrumentation.
      * @returns An array of string representing dependency names.
      */
     public abstract instrumentationDependencies(): string[];
 
     /**
+     * An abstract method to generate the instrumentation files by the instrumentation generator
      * Must be implemented to generate the actual instrumentation files.
      * Will use the instrumentation strategy in the process
      */
     public abstract generateInstrumentationFiles(): void;
 
     /**
+     * An abstract method to generate the instrumentation bundle by the instrumentation generator
      * Must be implemented to bundle the generated instrumentation files into a single executable package.
      */
     public abstract generateInstrumentationBundle(): Promise<void>;
@@ -304,8 +385,8 @@ export abstract class InstrumentationBundleInjector {
     protected abstract preInject(): Promise<void>;
 
     /**
-     * Injects the bundle into the target HTML page.
-     * Default implementation can be overridden by subclasses if needed.
+     * Injects the bundle into the target HTML page by appending a <script> tag.
+     * This default implementation can be overridden by subclasses if needed.
      */
     protected async inject(): Promise<void> {
         if (!existsSync(this.targetHTMLPagePath)) {

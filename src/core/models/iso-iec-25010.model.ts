@@ -2,7 +2,8 @@ import { CompositeGoal, LeafGoal } from "../goals/goals";
 import { QualityModel } from "./quality-model";
 
 /**
- * Represents the ISO/IEC 25010 software quality model, detailing its characteristics and sub-characteristics.
+ * Represents the ISO/IEC 25010 quality model.
+ * This model defines characteristics and sub-characteristics for evaluating software quality.
  */
 export class ISOIEC25010 extends QualityModel {
     constructor() {
@@ -16,7 +17,7 @@ export class ISOIEC25010 extends QualityModel {
     }
 
     /**
-     * Clears then rebuilds the ISO/IEC 25010 (2023) quality model's characteristics
+     * Clears and rebuilds all characteristics of the ISO/IEC 25010 quality model.
      */
     public rebuild() {
         this.clearGoals();
@@ -24,7 +25,7 @@ export class ISOIEC25010 extends QualityModel {
     }
 
     /**
-     * Builds all (sub-)characteristics of the ISO/IEC 25010 model (2023)
+     * Builds all main characteristics and their sub-characteristics for the model.
      */
     private buildCharacteristics() {
         this.buildInteractionCapabilityCharacteristics(); // Interaction Capability

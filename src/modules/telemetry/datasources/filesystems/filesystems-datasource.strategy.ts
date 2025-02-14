@@ -3,6 +3,9 @@ import path from 'path';
 import { Assessment } from '../../../../core/assessment/assessment-core';
 import { TelemetryDataSource, TelemetryDataSourceConfig } from '../../../../core/telemetry/telemetry';
 
+/**
+ * Class to handle telemetry data storage and retrieval from the filesystem.
+ */
 export class FileTelemetryDataSource extends TelemetryDataSource {
     private filePath: string;
 
@@ -12,13 +15,17 @@ export class FileTelemetryDataSource extends TelemetryDataSource {
     }
 
     async connect(): Promise<void> {
-        // No specific connection needed for file-based storage
+        // File-based storage does not require an actual connection setup.
     }
 
     async disconnect(): Promise<void> {
-        // No specific disconnection needed for file-based storage
+        // No disconnection process needed for file-based storage.
     }
 
+    /**
+     * Reads telemetry data and assessments from the specified file.
+     * @returns Parsed telemetry data and assessments.
+     */
     async read(): Promise<{ telemetryData: any[], assessments: any[] }> {
         if (!fs.existsSync(this.filePath)) {
             console.warn(`File Telemetry DataSource: File ${this.filePath} does not exist.`);
@@ -57,6 +64,9 @@ export class FileTelemetryDataSource extends TelemetryDataSource {
         return parsedData;
     }
 
+    /**
+     * Stores a single telemetry data item in the file.
+     */
     async store(data: any): Promise<void> {
         const fileData = await this.read();
 
@@ -71,6 +81,9 @@ export class FileTelemetryDataSource extends TelemetryDataSource {
         await this.writeFile(fileData);
     }
 
+    /**
+     * Stores multiple telemetry data items at once.
+     */
     async storeAll(data: any[]): Promise<void> {
         let fileData = await this.read();
 
@@ -85,6 +98,9 @@ export class FileTelemetryDataSource extends TelemetryDataSource {
         await this.writeFile(fileData);
     }
 
+    /**
+     * Stores multiple assessments in the file.
+     */
     async storeAssessments(assessments: Assessment[], filter?: any): Promise<void> {
         let fileData = await this.read();
 
@@ -110,6 +126,9 @@ export class FileTelemetryDataSource extends TelemetryDataSource {
         await this.writeFile(fileData);
     }
 
+    /**
+     * Writes data to the specified file in the configured format.
+     */
     private async writeFile(data: any): Promise<void> {
         const fileData = this.formatData(data);
 
@@ -140,6 +159,11 @@ export class FileTelemetryDataSource extends TelemetryDataSource {
         // Implement XML parsing logic
     }
 
+    /**
+     * Formats data based on the data format provided in the data source configuration
+     * @param data the data to format
+     * @returns the formatted data based on the data source configuration
+     */
     private formatData(data: any): string {
         switch (this.config.dataFormat) {
             case 'CSV':

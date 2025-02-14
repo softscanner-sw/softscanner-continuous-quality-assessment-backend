@@ -3,13 +3,14 @@ import * as fs from "fs";
 import * as path from "path";
 
 /**
- * Manages instrumentation dependencies (e.g., npm), including checking if they are installed and
- * installing them if necessary.
+ * Class responsible for managing project dependencies (e.g., npm packages).
+ * It provides utilities for installing, checking, and verifying the presence of npm dependencies.
  */
 export class DependencyManager {
     /**
-     * Installs the required npm packages for the project.
-     * @param packageNames An array of package names to be installed.
+     * Installs multiple npm packages for the current project.
+     * This method iterates over the provided package names and installs each one.
+     * @param packageNames An array of npm package names to be installed.
      */
     static installNPMDependencies(packageNames: string[]): void {
         console.log('Installing dependencies...');
@@ -18,8 +19,9 @@ export class DependencyManager {
     }
 
     /**
-     * Installs a single npm package.
-     * @param packageName The name of the package to install.
+     * Installs a single npm package using the `npm install` command.
+     * If the installation fails, an error message is logged.
+     * @param packageName The name of the npm package to install.
      */
     static installNPMDependency(packageName: string): void {
         console.log('Installing dependency...');
@@ -33,8 +35,8 @@ export class DependencyManager {
     }
 
     /**
-     * Checks if a specific npm package is installed by checking it in node_modules
-     * and alternatively in package.json
+     * Checks if a specific npm package is installed in the project.
+     * It first checks for the package in the `node_modules` directory and then in `package.json`.
      * @param packageName The name of the package to check.
      * @returns true if the package is installed, false otherwise.
      */
@@ -59,8 +61,9 @@ export class DependencyManager {
     }
 
     /**
-     * Checks if all required npm packages are already installed.
-     * @param packageNames The npm package names to be checked.
+     * Checks if all specified npm packages are installed in the project.
+     * This method iterates over each package and verifies its installation.
+     * @param packageNames An array of npm package names to check.
      * @returns true if all packages are installed, false otherwise.
      */
     static areDependenciesInstalled(packageNames: string[]): boolean {

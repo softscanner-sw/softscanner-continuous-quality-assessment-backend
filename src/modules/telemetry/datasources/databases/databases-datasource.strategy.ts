@@ -1,5 +1,9 @@
 import { TelemetryDataSource } from "../../../../core/telemetry/telemetry";
 
+/**
+ * Abstract class for database-based telemetry data sources.
+ * Defines common methods for connecting and disconnecting from a database.
+ */
 export abstract class DatabaseTelemetryDataSource extends TelemetryDataSource {
     protected connected = false;
 
@@ -17,6 +21,13 @@ export abstract class DatabaseTelemetryDataSource extends TelemetryDataSource {
         }
     }
 
+    /**
+     * Abstract method to establish a connection to the database.
+     */
     protected abstract createConnection(): Promise<void>;
+
+    /**
+     * Abstract method to close the connection to the database.
+     */
     protected abstract closeConnection(): Promise<void>;
 }

@@ -3,26 +3,40 @@ import { AbstractInstrumentationStrategy } from "../../../core/instrumentation/i
 import { TelemetryConfig, TelemetryExportDestination, TelemetryType, UserInteractionEvent } from "../../../core/telemetry/telemetry";
 import { Utils } from "../../../core/util/util-core";
 
+/**
+ * Class responsible for managing a registry of user interaction events and their string representations 
+ * for OpenTelemetry instrumentation.
+ */
 export class OpenTelemetryEventRegistry {
     static registry: Map<UserInteractionEvent, string> = new Map<UserInteractionEvent, string>();
 
+    // Static block to initialize the registry when the class is loaded
     static {
         this.initialize()
     }
 
+    /**
+     * Initializes the event registry by mapping each `UserInteractionEvent` enum value
+     * to its lowercase string representation without separators (e.g., `MouseClick` -> `mouseclick`).
+     */
     private static initialize() {
         const enumValuesString = Utils.getEnumStringValues(UserInteractionEvent);
         for (let enumValue of enumValuesString) {
-            // Event representation in the enum
+            // Convert enum value to its corresponding `UserInteractionEvent`
             const event = UserInteractionEvent[enumValue as keyof typeof UserInteractionEvent] as UserInteractionEvent;
 
-            // Event string representation as required by the OpenTelemetry instrumentation
-            // to capture user interactions during tracing. (i.e., lowercase and no separator)
+            // Convert the event name to a lowercase string with no separators (required for OpenTelemetry)
             const eventString = Utils.convertEnumValueToLowercaseWithNoSeparator(enumValue);
+
+            // Add the event and its string representation to the registry
             this.registry.set(event, eventString);
         }
     }
 
+    /**
+     * Returns all the `UserInteractionEvent` values registered in the map.
+     * @returns {UserInteractionEvent[]} List of user interaction events.
+     */
     public static events(): UserInteractionEvent[] {
         let events: UserInteractionEvent[] = [];
 
@@ -33,6 +47,10 @@ export class OpenTelemetryEventRegistry {
         return events;
     }
 
+    /**
+     * Returns all string representations of the registered user interaction events.
+     * @returns {string[]} List of string representations.
+     */
     public static stringRepresentations(): string[] {
         let eventStrs: string[] = [];
 
@@ -43,10 +61,20 @@ export class OpenTelemetryEventRegistry {
         return eventStrs;
     }
 
+    /**
+     * Gets the string representation for a specific `UserInteractionEvent`.
+     * @param {UserInteractionEvent} event - The event to get the string representation for.
+     * @returns {string | undefined} String representation if available, otherwise undefined.
+     */
     public static getStringRepresentation(event: UserInteractionEvent): string | undefined {
         return this.registry.get(event);
     }
 
+    /**
+     * Converts an array of `UserInteractionEvent` values to their string representations.
+     * @param {UserInteractionEvent[]} events - List of events to convert.
+     * @returns {string[]} List of string representations.
+     */
     public static getStringRepresentations(events: UserInteractionEvent[]): string[] {
         let target: string[] = [];
         events.forEach(event => {
@@ -59,16 +87,27 @@ export class OpenTelemetryEventRegistry {
     }
 }
 
+/**
+ * Configuration class for user interaction events in OpenTelemetry.
+ * Defines whether event tracing is enabled and which specific events are tracked.
+ */
 export class OpenTelemetryUserInteractionEventsConfig {
     constructor(
-        public enabled: boolean, // enabled/disabled
-        public events: UserInteractionEvent[] // events to enable
+        public enabled: boolean,  // Indicates if event tracing is enabled
+        public events: UserInteractionEvent[]  // List of events to trace
     ) { }
 }
 
-// Abstract Strategy class for all OpenTelemetry instrumentation strategies
+/**
+ * Abstract base class for OpenTelemetry instrumentation strategies.
+ * Defines a common structure for instrumentation configurations.
+ */
 export abstract class OpenTelemetryInstrumentationStrategy extends AbstractInstrumentationStrategy {
-    /* CONSTRUCTOR */
+    /**
+     * Constructor for the base OpenTelemetry instrumentation strategy.
+     * @param {OpenTelemetryInstrumentationConfig} config - Configuration for the strategy.
+     * @param {ApplicationMetadata} application - Metadata about the application being instrumented.
+     */
     constructor(
         config: OpenTelemetryInstrumentationConfig,
         application: ApplicationMetadata,
@@ -77,24 +116,49 @@ export abstract class OpenTelemetryInstrumentationStrategy extends AbstractInstr
     }
 }
 
-// Abstract Strategy class for all setup and configuration instrumentation strategies of main telemetry types
+/**
+ * Abstract class for OpenTelemetry instrumentation strategies related to main telemetry types.
+ * Requires implementation of methods to generate OpenTelemetry providers and exporters.
+ */
 export abstract class OpenTelemetryMainInstrumentationStrategy extends OpenTelemetryInstrumentationStrategy {
-    /* CONSTRUCTOR */
+    /**
+     * Constructor for the main OpenTelemetry instrumentation strategy.
+     * @param {OpenTelemetryInstrumentationConfig} config - Configuration for the strategy.
+     * @param {ApplicationMetadata} application - Metadata about the application being instrumented.
+     */
     constructor(config: OpenTelemetryInstrumentationConfig, application: ApplicationMetadata) {
         super(config, application);
     }
 
-    /* METHODS */
+    /**
+     * Generates the OpenTelemetry provider setup code.
+     * @abstract
+     * @returns {string} Code for setting up the provider.
+     */
     public abstract generateProvider(): string;
-    public abstract generateProviderRegistration(): string;
+
+    /**
+     * Generates the provider registration code for OpenTelemetry.
+     * @abstract
+     * @returns {string} Code for registering the provider.
+     */
+    public abstract generateProviderContextManagerRegistration(): string;
+
+    /**
+     * Generates the provider exporter configuration.
+     * @abstract
+     * @returns {string} Code for setting up exporters.
+     */
     public abstract generateProviderExporters(): string;
 }
 
+/**
+ * Configuration class for OpenTelemetry instrumentation.
+ * Specifies the types of telemetry and export destinations.
+ */
 export class OpenTelemetryInstrumentationConfig implements TelemetryConfig {
     constructor(
-        // one or multiple telemetry types
-        public telemetryTypes: TelemetryType[],
-        // one or multiple export destinations
-        public exportDestinations: TelemetryExportDestination[]
+        public telemetryTypes: TelemetryType[],  // List of telemetry types (e.g., traces, metrics)
+        public exportDestinations: TelemetryExportDestination[]  // List of export destinations (e.g., local file, remote server)
     ) { }
 }

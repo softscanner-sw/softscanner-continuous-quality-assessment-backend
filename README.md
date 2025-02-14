@@ -110,7 +110,7 @@ Telemetry and assessments are stored in MongoDB or on filesystems. Each instrume
 }
 ```
 
-### 3️⃣ Running the Backend
+### 4️⃣ Running the Backend
 ```bash
 npm start
 ```

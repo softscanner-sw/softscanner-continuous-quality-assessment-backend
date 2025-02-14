@@ -2,16 +2,17 @@ import { EventEmitter } from "stream";
 import { Assessment } from "../assessment/assessment-core";
 
 /**
- * Enumerates the types of telemetry that can be collected.
+ * An enum representing the types of telemetry that can be collected.
  */
 export enum TelemetryType {
-    TRACING = 'tracing',
-    LOGGING = 'logging',
-    METRICS = 'metrics',
+    TRACING = 'tracing', // For tracing events within the application.
+    LOGGING = 'logging', // For collecting log data.
+    METRICS = 'metrics', // For collecting application metrics.
 }
 
 /**
- * Enumerates possible user interaction events that can be monitored and traced.
+ * An enum representing various user interaction events that can be monitored and traced.
+ * These events correspond to standard browser events like clicks, keyboard inputs, and mouse actions.
  */
 export enum UserInteractionEvent {
     ABORT, ANIMATION_CANCEL, ANIMATION_END, ANIMATION_ITERATION, ANIMATION_START, AUX_CLICK,
@@ -37,6 +38,10 @@ export enum UserInteractionEvent {
 }
 
 export namespace UserInteractionEvent {
+    /**
+     * Returns an array of all possible user interaction events.
+     * @returns array of all possible user interaction events.
+     */
     export function getAllEvents(): UserInteractionEvent[] {
         return [
             UserInteractionEvent.ABORT,
@@ -132,6 +137,10 @@ export namespace UserInteractionEvent {
         ];
     }
 
+    /**
+     * Returns an array of primary user interaction events (e.g., CHANGE, CLICK, SELECT, SUBMIT).
+     * @returns an array of primary user interaction events (e.g., CHANGE, CLICK, SELECT, SUBMIT).
+     */
     export function getMainEvents(): UserInteractionEvent[] {
         return [
             UserInteractionEvent.CHANGE,
@@ -143,48 +152,49 @@ export namespace UserInteractionEvent {
 }
 
 /**
- * Configuration interface for telemetry collection.
- * It allows specifying which types of telemetry to collect, and optionally, which user interaction events to monitor.
+ * An interface defining the configuration for telemetry collection.
+ * It specifies the types of telemetry to collect and optionally
+ * allows selecting specific user interaction events to monitor.
  */
 export interface TelemetryConfig {
-    telemetryTypes: TelemetryType[];
-    userInteractionEvents?: UserInteractionEvent[]; // Optional, only if user interaction events are to be monitored
+    telemetryTypes: TelemetryType[]; // An array of TelemetryType indicating the types of telemetry to collect.
+    userInteractionEvents?: UserInteractionEvent[]; // Optional array of UserInteractionEvent to monitor.
 }
 
 /**
- * Enumerates the types of destinations where telemetry data can be exported.
+ * An enum specifying possible destinations for exporting telemetry data
  */
 export enum TelemetryExportDestinationType {
-    CONSOLE = 'console',
-    LOCAL_COLLECTOR = 'collector.local',
-    REMOTE_COLLECTOR = 'collector.remote',
+    CONSOLE = 'console', // Exports telemetry to the console.
+    LOCAL_COLLECTOR = 'collector.local', // Exports to a local telemetry collector.
+    REMOTE_COLLECTOR = 'collector.remote', // Exports to a remote telemetry collector.
 }
 
 /**
- * Enumerates the protocols that can be used for exporting telemetry data
+ * An enum specifying protocols for exporting telemetry data
  */
 export enum TelemetryExportProtocol {
     OTLP = 'OTLP', // OpenTelemetry Protocol for telemetry data export.
-    WEB_SOCKETS = 'WebSockets', // WebSocket protocol for real-time telemetry data export.
+    WEB_SOCKETS = 'WebSockets', // WebSocket protocol for real-time telemetry export.
 }
 
 /**
- * Defines the structure of a telemetry export destination.
+ * An interface representing the configuration for telemetry export destinations.
  */
 export interface TelemetryExportDestination {
-    type: TelemetryExportDestinationType, // The type of the destination.
-    protocol?: TelemetryExportProtocol, // The protocol used for exporting data.
+    type: TelemetryExportDestinationType, // The type of export destination (TelemetryExportDestinationType).
+    protocol?: TelemetryExportProtocol, // The protocol to use for exporting (TelemetryExportProtocol).
     url?: string, // The URL of the destination.
-    port?: number // The port of the destination.
+    port?: number // The port number of the destination.
 }
 
 /**
- * Defines possible formats for telemetry data.
+ * An enum specifying possible data formats for telemetry data
  */
 export type TelemetryDataFormat = 'CSV' | 'JSON' | 'XML';
 
 /**
- * Enumerates the types of storage endpoints available for telemetry data.
+ * An enum specifying storage types for telemetry data
  */
 export enum TelemetryStorageEndpointType {
     FILE, // Store telemetry data in files.
@@ -192,18 +202,17 @@ export enum TelemetryStorageEndpointType {
 }
 
 /**
- * Defines the structure of a telemetry storage endpoint.
+ * An interface defining a storage endpoint for telemetry data.
  */
 export interface TelemetryStorageEndpoint {
-    type: TelemetryStorageEndpointType, // The type of the endpoint.
+    type: TelemetryStorageEndpointType, // The type of storage endpoint (TelemetryStorageEndpointType).
     name: string, // A human-readable name for the endpoint.
     uri: string // The URI of the endpoint (e.g., file path or database connection string).
 }
 
 /**
- * Abstract base class for telemetry data sources.
- * Defines the basic structure and operations required 
- * for reading and storing telemetry data.
+ * An abstract base class for telemetry data sources.
+ * Defines the operations required for connecting, reading, and storing telemetry data.
  */
 export abstract class TelemetryDataSource {
 
@@ -215,47 +224,64 @@ export abstract class TelemetryDataSource {
         public config: TelemetryDataSourceConfig) { }
 
 
+    /**
+     * Establishes a connection to the data source.
+     */
     abstract connect(): Promise<void>;
+
+    /**
+     * Disconnects from the data source.
+     */
     abstract disconnect(): Promise<void>;
+
+    /**
+     * Reads telemetry data with an optional filter.
+     * @param filter any filter to apply on the telemetry to read
+     */
     abstract read(filter?: any): Promise<any | any[]>;
 
     /**
-     * Stores a single piece of data.
+     * Stores a single data item.
      * @param {any} data - The data to store.
      */
     abstract store(data: any): Promise<void>;
 
     /**
-     * Stores an array of data items.
+     * Stores multiple data items.
      * @param {any[]} data - The array of data items to store.
      */
     abstract storeAll(data: any[]): Promise<void>;
 
+    /**
+     * Stores assessment results in the data source
+     * @param assessments The obtained assessment results
+     * @param filter any filter to apply on the assessments to store
+     */
     abstract storeAssessments(assessments: Assessment[], filter?: any): Promise<void>;
 }
 
 /**
- * Configuration for telemetry data sources.
+ * An interface defining the configuration for telemetry data sources.
  */
 export interface TelemetryDataSourceConfig {
-    storageEndpoint: TelemetryStorageEndpoint, // The concerned storage endpoint.
+    storageEndpoint: TelemetryStorageEndpoint, // The target storage endpoint.
     dataFormat?: TelemetryDataFormat, // The format of the telemetry data.
 }
 
 /**
- * Configuration for telemetry collectors.
+ * An interface for configuring telemetry collectors.
  */
 export interface TelemetryCollectorConfig {
-    storageEndpoints?: TelemetryStorageEndpoint[], // Endpoints where collected telemetry data should be stored.
-    dataFormat?: TelemetryDataFormat // The format of the telemetry data.
-    port?: number; // The telemetry collector server port number
+    storageEndpoints?: TelemetryStorageEndpoint[], // The storage endpoints for collected telemetry data
+    dataFormat?: TelemetryDataFormat // The data format (CSV, JSON, XML)
+    port?: number; // The server port for the telemetry collector
     authentication?: { // Optional authentication config for accessing the storage endpoints.
         method: 'Bearer' | 'Basic' | 'APIKey';
         credentials: string | { apiKey: string; secret: string; };
     };
-    batchSize?: number; // The number of telemetry data items to process in a single batch.
-    flushInterval?: number; // The interval (in milliseconds) at which to flush data to storage.
-    retryPolicy?: { // Policy for retrying failed storage attempts.
+    batchSize?: number; // Number of telemetry data items to process in a batch.
+    flushInterval?: number; // Interval (in ms) for flushing data to storage.
+    retryPolicy?: { // Configuration for retrying failed storage attempts
         maxRetries?: number; // The maximum number of retry attempts.
         initialDelay?: number; // The initial delay (in milliseconds) before retrying.
         backoffFactor?: number; // The factor by which the delay increases after each retry.
@@ -263,7 +289,8 @@ export interface TelemetryCollectorConfig {
 }
 
 /**
- * Abstract base class for telemetry collectors.
+ * An abstract base class for telemetry collectors, responsible for
+ * collecting, processing, and storing telemetry data.
  */
 export abstract class TelemetryCollector {
     protected telemetryData: any[] = []; // Generic container for the collected telemetry data
@@ -272,45 +299,69 @@ export abstract class TelemetryCollector {
 
     constructor(protected _config: TelemetryCollectorConfig) { }
 
+    /**
+     * Gets the telemetry collector configuration
+     */
     get config(): TelemetryCollectorConfig {
         return this._config || {};
     }
 
+    /**
+     * Sets the telemetry collector configuration
+     */
     set config(config: TelemetryCollectorConfig) {
         this._config = config;
     }
 
+    /**
+     * Gets the telemetry collector data source
+     */
     get telemetryDataSource(): TelemetryDataSource | undefined {
         return this._telemetryDataSource;
     }
 
+    /**
+     * Sets the telemetry collector data source
+     */
     set telemetryDataSource(telemetryDataSource: TelemetryDataSource) {
         this._telemetryDataSource = telemetryDataSource;
     }
 
-    // Event handling methods
+    /* Event handling methods */
+
+    /**
+     * Registers a listener for the `dataFlushed` event.
+     * @param event The `dataFlushed` event
+     * @param listener the listener for the dataFlushed event
+     */
     on(event: 'dataFlushed', listener: (endpoints: TelemetryStorageEndpoint[]) => void): void {
         this.eventEmitter.on(event, listener);
     }
 
+    /**
+     * Emits a `dataFlushed` event with the provided data.
+     * @param event The `dataFlushed` event
+     * @param data The emitted data
+     */
     emit(event: 'dataFlushed', data: any): void {
         this.eventEmitter.emit(event, data);
     }
 
     /**
-     * Collects telemetry data.
-     * Implementations should specify what collected telemetry data to collect
-     * and how to store it in the `telemetryData` array.
+     * Abstract method to collect telemetry data
      */
     abstract collectTelemetry(data: any): void;
 
     /**
-     * Stores collected telemetry data in configured storage endpoints.
-     * Implementations delegate the storage of metrics to the appropriate telemetry storage
-     * strategies, based on the provided `TelemetryCollectorConfig`.
+     * Abstract method to store telemetry data in configured storage endpoints
      */
     abstract storeTelemetry(): Promise<void>;
 
+    /**
+     * Stores assessments along with telemetry data in configured storage endpoints
+     * @param assessments The assessments to store
+     * @param filter Optional filter to apply upon storing the assessments
+     */
     abstract storeAssessments(assessments: Assessment[], filter?: any): Promise<void>;
 
     /**

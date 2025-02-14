@@ -6,32 +6,39 @@ import { WebSocketTelemetryCollector } from "../modules/telemetry/collectors/web
 import { IProgressTrackable, ProgressTracker } from "./progress-tracker.service";
 
 /**
- * Service to handle the telemetry collection and storage process.
+ * Service responsible for managing the telemetry collection process
+ * This service handles the configuration and setup of telemetry collectors and manages 
+ * the storage of telemetry data in either database or file storage.
  */
 export class TelemetryService implements IProgressTrackable {
+    // Progress tracker to track and notify about progress updates during telemetry collector setup
     private progressTracker!: ProgressTracker;
 
     constructor() { }
 
+    /**
+     * Sets the progress tracker for monitoring the progress of telemetry collection processes.
+     * @param progressTracker - The progress tracker instance to be set.
+     */
     setProgressTracker(progressTracker: ProgressTracker): void {
         this.progressTracker = progressTracker;
     }
 
     /**
-     * Triggers the instrumentation process.
-     * It starts with extracting metrics from the selected goals and based on application metadata
-     * to generate and inject instrumentation agents.
-     * @param appMetadata The metadata of the application being instrumented.
-     * @param selectedGoals The selected quality goals.
-     * @returns the instrumentation bundle file name
+     * Sets up the telemetry collector for the application by generating a configuration file
+     * and initializing a WebSocket-based telemetry collector.
+     * @param appInstrumentationMetadata - Metadata about the application being instrumented.
+     * @returns A promise that resolves to an instance of the configured `TelemetryCollector`.
      */
     async setupTelemetryCollector(appInstrumentationMetadata: ApplicationInstrumentationMetadata): Promise<TelemetryCollector> {
-        // Generate configuration file for the telemetry collector
+        // Notify the progress tracker about generating the telemetry collector configuration
         console.log('Telemetry service: Generating configuration file for telemetry collector...');
         this.progressTracker.notifyProgress('Telemetry service: Generating configuration file for telemetry collector...');
+
+        // Generate the configuration for the telemetry collector
         const collectorConfig = this.generateTelemetryCollectorConfiguration(appInstrumentationMetadata, TelemetryStorageEndpointType.DATABASE);
 
-        // Set up telemetry collector
+        // Set up and start the WebSocket telemetry collector using the generated configuration
         const collector = new WebSocketTelemetryCollector(collectorConfig, collectorConfig.port);
         console.log(`Telemetry service: Telemetry collector server is running on ws://localhost:${collectorConfig.port}`);
         this.progressTracker.notifyProgress(`Telemetry service: Telemetry collector server is running on ws://localhost:${collectorConfig.port}`);
@@ -39,10 +46,19 @@ export class TelemetryService implements IProgressTrackable {
         return collector;
     }
 
+    /**
+     * Generates a configuration for the telemetry collector, specifying where and how
+     * the telemetry data should be stored.
+     * @param appInstrumentationMetadata - Metadata about the application being instrumented.
+     * @param storageType - The type of storage for telemetry data (DATABASE or FILE).
+     * @returns A `TelemetryCollectorConfig` object with the generated configuration.
+     */
     private generateTelemetryCollectorConfiguration(appInstrumentationMetadata: ApplicationInstrumentationMetadata, storageType: TelemetryStorageEndpointType): TelemetryCollectorConfig {
         let storageEndpoint: TelemetryStorageEndpoint;
 
+        // Configure the storage endpoint based on the specified storage type
         if (storageType === TelemetryStorageEndpointType.DATABASE) { // DATABASE
+            // Use a MongoDB endpoint for telemetry storage
             storageEndpoint = {
                 type: TelemetryStorageEndpointType.DATABASE,
                 name: 'continuous-quality-assessment-web-telemetry-mongodb',
@@ -50,21 +66,21 @@ export class TelemetryService implements IProgressTrackable {
             };
         }
 
-        else { // FILE
+        else { // Use file-based storage
             const { appMetadata, bundleName } = appInstrumentationMetadata;
             const normalizedAppName = appMetadata.generateNormalizedApplicationName('-');
-            const projectRootPath = path.resolve(__dirname, '../../'); // this project's root folder path
-            const storageFilesRootFolder: string = path.join(projectRootPath, 'assets', 'files');
+            const projectRootPath = path.resolve(__dirname, '../../'); // Get the project root folder path
+            const storageFilesRootFolder: string = path.join(projectRootPath, 'assets', 'files'); // Path to store telemetry files
             const appStorageFolderPath = path.join(storageFilesRootFolder, normalizedAppName);
             const telemetryFileName = path.basename(bundleName).replace('.bundle.js', '.json');
 
-            // Ensure the folder structure exists
+            // Ensure the folder structure for storing telemetry data exists
             if (!fs.existsSync(appStorageFolderPath)) {
                 fs.mkdirSync(appStorageFolderPath, { recursive: true });
                 console.log(`Telemetry service: Created folder for telemetry data: ${appStorageFolderPath}`);
             }
 
-            const uri = path.join(appStorageFolderPath, telemetryFileName);
+            const uri = path.join(appStorageFolderPath, telemetryFileName); // Full path to the telemetry file
 
             // console.log(`TelemetryService: Generated URI for storage endpoint: ${uri}`);
 
@@ -78,10 +94,11 @@ export class TelemetryService implements IProgressTrackable {
 
         console.log(`TelemetryService: Configured storage endpoint: ${JSON.stringify(storageEndpoint)}`);
 
+        // Return the telemetry collector configuration with the specified storage endpoint and port
         return {
-            port: 8081,
-            storageEndpoints: [storageEndpoint],
-            dataFormat: "JSON"
-        }
+            port: 8081,                  // The port on which the telemetry collector will run
+            storageEndpoints: [storageEndpoint], // List of configured storage endpoints
+            dataFormat: "JSON"           // Format of the telemetry data (JSON)
+        };
     }
 }

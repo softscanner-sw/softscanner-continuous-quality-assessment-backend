@@ -4,20 +4,33 @@ import { TelemetryExportDestination, TelemetryExportDestinationType, TelemetryEx
 import { OpenTelemetryEventRegistry, OpenTelemetryInstrumentationConfig, OpenTelemetryInstrumentationStrategy, OpenTelemetryMainInstrumentationStrategy } from "../opentelemetry-core";
 import { OpenTelemetryTracingInstrumentationConfig } from "./opentelemetry-instrumentation-tracing-core";
 
-// Concrete Strategy for Tracing
+/**
+ * Strategy for generating OpenTelemetry tracing instrumentation files.
+ * Extends `OpenTelemetryMainInstrumentationStrategy` to provide specific functionality for tracing.
+ */
 export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMainInstrumentationStrategy {
-    /* CONSTRUCTOR */
+    /**
+     * Constructor for OpenTelemetryTracingInstrumentationStrategy
+     * @param config {OpenTelemetryTracingInstrumentationConfig} - Configuration for tracing instrumentation
+     * @param _applicationInstrumentationMetadata {ApplicationInstrumentationMetadata} - Metadata for the application being instrumented
+     */
     constructor(
         config: OpenTelemetryTracingInstrumentationConfig,
         protected _applicationInstrumentationMetadata: ApplicationInstrumentationMetadata) {
         super(config, _applicationInstrumentationMetadata.appMetadata);
     }
 
-    get applicationMetadata(): ApplicationInstrumentationMetadata {
+    /**
+     * Getter for accessing application instrumentation metadata
+     */
+    get applicationInstrumentationMetadata(): ApplicationInstrumentationMetadata {
         return this._applicationInstrumentationMetadata;
     }
 
-    /* METHODS */
+    /**
+     * Generates the list of instrumentation files required for tracing.
+     * @returns {Instrumentation[]} - Array of Instrumentation objects with file content and paths
+     */
     public generateInstrumentationFiles(): Instrumentation[] {
         let instrumentations: Instrumentation[] = [];
         instrumentations.push(this.generateTracingInstrumentationFile(
@@ -27,6 +40,11 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         return instrumentations;
     }
 
+    /**
+     * Generates the tracing instrumentation file content.
+     * @param fileName {string} - The name of the instrumentation file
+     * @returns {Instrumentation} - An Instrumentation object containing the file name, content, and paths
+     */
     private generateTracingInstrumentationFile(fileName: string): Instrumentation {
         // project root path
         const projectRootPath = this._projectRootPath;
@@ -52,7 +70,7 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         ${this.generateAddSpanProcessors()}
         
         // Tracer provider registration
-        ${this.generateProviderRegistration()}
+        ${this.generateProviderContextManagerRegistration()}
 
         // Tracer provider Automatic instrumentation registration
         ${this.generateTracerProviderAutoInstrumentationRegistration()}
@@ -62,6 +80,11 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         return { fileName, content, srcPath, projectRootPath };
     }
 
+    /**
+     * Generates the necessary import statements based on the configuration.
+     * This includes imports for console, OTLP, and WebSocket exporters as well as session and metadata processing.
+     * @returns {string} - A string containing the import statements
+     */
     public generateImportations(): string {
         const config = (this._config as OpenTelemetryTracingInstrumentationConfig);
         const exportDestinations = config.exportDestinations;
@@ -78,6 +101,7 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         ${InstrumentationGenerator.generateImportFromStatement('SemanticResourceAttributes', '@opentelemetry/semantic-conventions')}
         `.trim();
 
+        /* Add imports for specific export destinations */
         // Importation for console exportation (if provided in the configuration)
         if (exportDestinations.some(exportDestination => exportDestination.type == TelemetryExportDestinationType.CONSOLE)) {
             importations = `
@@ -121,6 +145,10 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         return importations;
     }
 
+    /**
+     * Generates constants for the service name and instance ID.
+     * @returns {string} - A string containing constant declarations.
+     */
     public generateConstants(): string {
         const applicationNormalizedName = this._application.generateNormalizedApplicationName('-');
 
@@ -130,6 +158,10 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         `.trim();
     }
 
+    /**
+     * Generates the code for creating and configuring the OpenTelemetry tracer provider.
+     * @returns {string} - A string containing the provider setup code
+     */
     public generateProvider(): string {
         return `
         export const tracerProvider = new WebTracerProvider({
@@ -141,7 +173,11 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         `.trim();
     }
 
-    public generateProviderRegistration(): string {
+    /**
+     * Registers the tracer provider with a context manager.
+     * @returns {string} - A string containing the registration code.
+     */
+    public generateProviderContextManagerRegistration(): string {
         return `
         tracerProvider.register({
             contextManager: new ZoneContextManager(),
@@ -149,11 +185,20 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         `.trim();
     }
 
+    /**
+     * Generates code snippets for setting up telemetry data exporters based on the specified export destinations in the configuration.
+     * This method supports three types of exporters:
+     * - Console Exporter: Logs telemetry data to the console.
+     * - OTLP Trace Exporter: Sends telemetry data to a remote OpenTelemetry Collector using the OTLP protocol.
+     * - WebSockets Trace Exporter: Sends telemetry data to a remote destination via WebSockets.
+     * 
+     * @returns A string containing the generated JavaScript code for each exporter.
+     */
     public generateProviderExporters(): string {
         const exportDestinations = (this._config as OpenTelemetryInstrumentationConfig).exportDestinations;
         let content = '';
 
-        // Create a console exporter (if provided in the configuration)
+        // Check for console exporter in the configuration and generate corresponding code
         if (exportDestinations.some(exportDestination => exportDestination.type == TelemetryExportDestinationType.CONSOLE)) {
             content = `
             // Console exporter
@@ -161,7 +206,7 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
             `.trim();
         }
 
-        // create an OTLP Trace Exporter (if provided in the configuration)
+        // Generate code for each OTLP Trace Exporter defined in the configuration
         exportDestinations.filter(exportDestination => exportDestination.protocol == TelemetryExportProtocol.OTLP)
             .forEach(exportDestination => {
                 content = `
@@ -172,7 +217,7 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
             `.trim();
             })
 
-        // create a Web Sockets Trace Exporter (if provided in the configuration)
+        // Generate code for each WebSockets Trace Exporter defined in the configuration
         exportDestinations.filter(exportDestination => exportDestination.protocol == TelemetryExportProtocol.WEB_SOCKETS)
             .forEach(exportDestination => {
                 content = `
@@ -186,12 +231,26 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         return content;
     }
 
+    /**
+     * Generates code for the ConsoleSpanExporter, which logs telemetry data to the console.
+     * This exporter is typically used for local development and debugging.
+     * 
+     * @returns A string containing the JavaScript code for creating a ConsoleSpanExporter instance.
+     */
     private generateConsoleExporter(): string {
         return `
         const consoleExporter = new ConsoleSpanExporter();
         `.trim();
     }
 
+    /**
+     * Generates code for creating an exporter that sends telemetry data to a remote collector.
+     * Depending on the protocol and destination type, the generated exporter can be either an OTLP Trace Exporter
+     * or a WebSockets Trace Exporter, with appropriate configurations.
+     * 
+     * @param exportDestination The export destination configuration, specifying protocol, URL, and type (local or remote).
+     * @returns A string containing the JavaScript code for creating the appropriate telemetry exporter instance.
+     */
     private generateCollectorExporter(exportDestination: TelemetryExportDestination): string {
         let protocol = 'OTLP'; // default
         let exporterObjectCls = 'OTLPTraceExporter'; // default
@@ -212,6 +271,11 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         `.trim();
     }
 
+    /**
+     * Generates code for adding span processors to the tracer provider.
+     * This includes session ID and application metadata processors if enabled.
+     * @returns {string} - A string containing the span processor registration code
+     */
     private generateAddSpanProcessors(): string {
         const config = this._config as OpenTelemetryTracingInstrumentationConfig;
         const automaticTracingOptions = config.automaticTracingOptions;
@@ -220,8 +284,7 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
 
         exportDestinations.forEach(exportDestination => {
             let exporterName = this.getTelemetryExporterVariableName(exportDestination);
-            let simpleSpanProcessor = `new SimpleSpanProcessor(${exporterName})`;  // default (batch processing to be added later)
-            let spanProcessor = simpleSpanProcessor;
+            let spanProcessor = `new SimpleSpanProcessor(${exporterName})`;  // default (batch processing to be added later)
 
             // Check for metadata span processing
             if (automaticTracingOptions.appMetadata) {
@@ -231,29 +294,27 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
                         normalizedName: '${this._application.generateNormalizedApplicationName('-')}',
                         technology: '${this._application.technology}',
                         instrumentationBundleName: '${this._applicationInstrumentationMetadata.bundleName}'
-                    })
-                `.trim();
+                    })`.trim();
             }
 
             // Check for session span processing
             if (automaticTracingOptions.sessionData) {
-                spanProcessor = `new SessionIdSpanProcessor( // Session data
-                    ${spanProcessor})
-                `.trim();
+                spanProcessor = `new SessionIdSpanProcessor(${spanProcessor})`.trim();
             }
 
-            content = `
-            ${content}
-
-            tracerProvider.addSpanProcessor(
-                ${spanProcessor}
-            );
+            content += `
+            tracerProvider.addSpanProcessor(${spanProcessor});
             `.trim()
         });
 
         return content;
     }
 
+    /**
+     * Helper function to get the variable name of the telemetry exporter.
+     * @param exportDestination {TelemetryExportDestination}
+     * @returns {string} - The variable name of the telemetry exporter.
+     */
     private getTelemetryExporterVariableName(exportDestination: TelemetryExportDestination): string {
         // Console exporter
         if (exportDestination.type == TelemetryExportDestinationType.CONSOLE)
@@ -274,6 +335,10 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
         return `${scope}${protocol}CollectorExporter`;
     }
 
+    /**
+     * Generates code for registering automatic instrumentation for document load, fetch, AJAX, and user interactions.
+     * @returns {string} - A string containing the auto-instrumentation registration code
+     */
     private generateTracerProviderAutoInstrumentationRegistration(): string {
         const automaticTracingOptions = (this._config as OpenTelemetryTracingInstrumentationConfig).automaticTracingOptions;
 
@@ -350,14 +415,23 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
 
 }
 
-// Concrete strategy for generating instrumentation files to trace session data
+/**
+ * A class representing a concrete strategy for generating instrumentation files to trace session data
+ */
 export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemetryInstrumentationStrategy {
-    /* CONSTRUCTOR */
+    /**
+     * Constructor for the session data instrumentation strategy.
+     * @param config OpenTelemetry instrumentation configuration
+     * @param application Metadata of the application being instrumented
+     */
     constructor(config: OpenTelemetryInstrumentationConfig, application: ApplicationMetadata) {
         super(config, application);
     }
 
-    /* METHODS */
+    /**
+     * Generates the instrumentation files required for session data tracking.
+     * @returns Array of instrumentation files
+     */
     public generateInstrumentationFiles(): Instrumentation[] {
         let instrumentations: Instrumentation[] = [];
         instrumentations.push(this.generateTracingInstrumentationFile(
@@ -367,6 +441,11 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
         return instrumentations;
     }
 
+    /**
+     * Generates a tracing instrumentation file with session management utilities.
+     * @param fileName Name of the generated file
+     * @returns An instrumentation object containing file details and content
+     */
     private generateTracingInstrumentationFile(fileName: string): Instrumentation {
         // project root path
         const projectRootPath = this._projectRootPath;
@@ -396,6 +475,10 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
         return { fileName, content, srcPath, projectRootPath };
     }
 
+    /**
+     * Generates import statements for the session management utilities.
+     * @returns Import statements as a string
+     */
     public generateImportations(): string {
         return `
         ${InstrumentationGenerator.generateImportFromStatement('Context', '@opentelemetry/api')}
@@ -404,6 +487,10 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
         `.trim();
     }
 
+    /**
+     * Generates utility functions for session ID generation.
+     * @returns Functions as a string
+     */
     private generateFunctions(): string {
         return `
         /* Generates session IDs using UUIDV4 */
@@ -413,6 +500,10 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
         `.trim();
     }
 
+    /**
+     * Generates an interface for session representation.
+     * @returns Interface definition as a string
+     */
     private generateInterfaces(): string {
         return `
         /* Custom Session Interface */
@@ -422,6 +513,10 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
         `.trim();
     }
 
+    /**
+     * Generates constants and session gateway functions for session management.
+     * @returns Constants and gateway functions as a string
+     */
     public generateConstants(): string {
         return `
         /* Key and default session values for local storage */ 
@@ -452,6 +547,10 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
         `.trim();
     }
 
+    /**
+     * Generates the session processor class that injects session information into spans.
+     * @returns Class definition as a string
+     */
     public generateClasses(): string {
         return `
         /* Custom Span Processor for Session information */
@@ -484,14 +583,23 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
     }
 }
 
-// Concrete strategy for generating a web sockets span exporter that will be used by the instrumentation
+/**
+ * A class representing a concrete strategy for generating a WebSockets-based span exporter for OpenTelemetry
+ */
 export class OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy extends OpenTelemetryInstrumentationStrategy {
-    /* CONSTRUCTOR */
+    /**
+     * Constructor for the WebSockets span exporter strategy.
+     * @param config OpenTelemetry instrumentation configuration
+     * @param application Metadata of the application being instrumented
+     */
     constructor(config: OpenTelemetryInstrumentationConfig, application: ApplicationMetadata) {
         super(config, application);
     }
 
-    /* METHODS */
+    /**
+     * Generates the instrumentation files for the WebSockets span exporter.
+     * @returns Array of instrumentation files
+     */
     public generateInstrumentationFiles(): Instrumentation[] {
         let instrumentations: Instrumentation[] = [];
         instrumentations.push(this.generateTracingInstrumentationFile(
@@ -501,6 +609,11 @@ export class OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy exten
         return instrumentations;
     }
 
+    /**
+     * Generates a tracing instrumentation file for WebSockets span exporting.
+     * @param fileName Name of the generated file
+     * @returns An instrumentation object containing file details and content
+     */
     private generateTracingInstrumentationFile(fileName: string): Instrumentation {
         // project root path
         const projectRootPath = this._projectRootPath;
@@ -524,6 +637,10 @@ export class OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy exten
         return { fileName, content, srcPath, projectRootPath };
     }
 
+    /**
+     * Generates import statements for WebSockets span exporting.
+     * @returns Import statements as a string
+     */
     public generateImportations(): string {
         return `
         ${InstrumentationGenerator.generateImportFromStatement('SpanExporter, ReadableSpan', '@opentelemetry/sdk-trace-base')}
@@ -531,10 +648,18 @@ export class OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy exten
         `.trim();
     }
 
+    /**
+     * Generates constants for WebSockets span exporting.
+     * @returns Constants for WebSockets span exporting as a string
+     */
     public generateConstants(): string {
         return ""; // no constants
     }
 
+    /**
+     * Generates an interface for the WebSocket span exporter configuration.
+     * @returns Interface definition as a string
+     */
     private generateInterfaces(): string {
         return `
         /* Configuration for WebSocketSpanExporter */
@@ -544,6 +669,10 @@ export class OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy exten
         `.trim();
     }
 
+    /**
+     * Generates the WebSocket span exporter class.
+     * @returns Class definition as a string
+     */
     public generateClasses(): string {
         return `
         /* Custom Web Sockets Span Exporter */
@@ -599,31 +728,44 @@ export class OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy exten
     }
 }
 
-// Concrete strategy for generating a metadata span processor that will be used by the instrumentation
+/**
+ * A class representing a concrete strategy for generating a metadata span processor for tracing instrumentation.
+ * This strategy generates tracing-related instrumentation files that inject application metadata into spans.
+ */
 export class OpenTelemetryMetadataSpanProcessingInstrumentationStrategy extends OpenTelemetryInstrumentationStrategy {
-    /* CONSTRUCTOR */
+    /**
+     * Constructor for the metadata span processing strategy.
+     * @param config Configuration object for the OpenTelemetry instrumentation.
+     * @param application Metadata related to the application being instrumented.
+     */
     constructor(config: OpenTelemetryInstrumentationConfig, application: ApplicationMetadata) {
         super(config, application);
     }
 
-    /* METHODS */
+    /**
+     * Generates instrumentation files required for the metadata span processing strategy.
+     * @returns An array of `Instrumentation` objects representing generated files.
+     */
     public generateInstrumentationFiles(): Instrumentation[] {
         let instrumentations: Instrumentation[] = [];
-        instrumentations.push(this.generateTracingInstrumentationFile(
-            `appMetadataUtils.ts`
-        ));
+
+        // Generate the tracing instrumentation file
+        instrumentations.push(this.generateTracingInstrumentationFile(`appMetadataUtils.ts`));
 
         return instrumentations;
     }
 
+    /**
+     * Generates a tracing instrumentation file with the given file name.
+     * This file contains the necessary imports, interfaces, and classes for metadata span processing.
+     * @param fileName The name of the generated file.
+     * @returns An `Instrumentation` object containing file metadata and content.
+     */
     private generateTracingInstrumentationFile(fileName: string): Instrumentation {
-        // project root path
-        const projectRootPath = this._projectRootPath;
+        const projectRootPath = this._projectRootPath;  // Path to the project root directory
+        const srcPath = this._srcPath;                  // Path to the source directory
 
-        // src path
-        const srcPath = this._srcPath;
-
-        // content
+        // Generate the content of the tracing instrumentation file
         let content = `
         // Importations
         ${this.generateImportations()}
@@ -635,10 +777,14 @@ export class OpenTelemetryMetadataSpanProcessingInstrumentationStrategy extends 
         ${this.generateClasses()}
         `.trim();
 
-        // path and parentPath will be set later
+        // Return an Instrumentation object with the file details
         return { fileName, content, srcPath, projectRootPath };
     }
 
+    /**
+     * Generates the import statements for the tracing instrumentation file.
+     * @returns A string containing import statements.
+     */
     public generateImportations(): string {
         return `
         ${InstrumentationGenerator.generateImportFromStatement('Context', '@opentelemetry/api')}
@@ -646,10 +792,18 @@ export class OpenTelemetryMetadataSpanProcessingInstrumentationStrategy extends 
         `.trim();
     }
 
+    /**
+     * Generates constant definitions (none needed for this strategy).
+     * @returns An empty string.
+     */
     public generateConstants(): string {
-        return ""; // no constants
+        return ""; // No constants required for this strategy
     }
 
+    /**
+     * Generates the interface definitions for the tracing instrumentation file.
+     * @returns A string containing the ApplicationMetadata interface definition.
+     */
     private generateInterfaces(): string {
         return `
         /* Application Metadata interface for telemetry exportation */
@@ -662,6 +816,11 @@ export class OpenTelemetryMetadataSpanProcessingInstrumentationStrategy extends 
         `.trim();
     }
 
+    /**
+     * Generates the class definitions for the tracing instrumentation file.
+     * This includes the `ApplicationMetadataSpanProcessor` class that injects metadata into spans.
+     * @returns A string containing class definitions.
+     */
     public generateClasses(): string {
         return `
         /* Custom Application Metadata Span Processor */

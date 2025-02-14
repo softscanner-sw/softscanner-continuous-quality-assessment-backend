@@ -4,20 +4,28 @@ import { ApplicationMetadata } from "../application/application-metadata";
 import { InstrumentationBundle, InstrumentationBundleInjector } from "./instrumentation-core";
 
 /**
- * Handles injecting the generated instrumentation bundle into the Angular project.
+ * The `BundleInjector` class is responsible for injecting a generated instrumentation bundle
+ * into a target application based on its technology (Angular or React).
+ * 
+ * It determines the appropriate injector for the given technology and executes the injection process.
  */
 export class BundleInjector {
     /**
-     * Injects the instrumentation bundle into the specified Angular project.
-     * @param appMetadata The metadata of the application being instrumented.
-     * @param bundle The instrumentation bundle to be injected.
+     * Injects the provided instrumentation bundle into the specified application.
+     * This involves modifying the application files to include the instrumentation bundle.
+     * 
+     * @param appMetadata Metadata of the application, including its technology (Angular, React, etc.).
+     * @param bundle The instrumentation bundle that contains the generated files to be injected.
+     * @returns A promise that resolves when the injection process completes.
      */
     public async injectBundle(appMetadata: ApplicationMetadata, bundle: InstrumentationBundle): Promise<void> {
-        console.log('Injecting instrumentation bundle...');
+        console.log('Instrumentation Bundle Injector: Injecting instrumentation bundle...');
 
+        // Determine the technology of the application (Angular or React)
         const technology = appMetadata.technology.toLowerCase();
         let injector: InstrumentationBundleInjector | null = null;
 
+        // Choose the appropriate injector based on the application's technology
         if (technology === 'angular')
             // Create an instance of the Angular bundle injector
             injector = new AngularInstrumentationBundleInjector(appMetadata, bundle);
@@ -25,12 +33,12 @@ export class BundleInjector {
             injector = new ReactInstrumentationBundleInjector(appMetadata, bundle);
 
         if (injector) {
-            // Perform the injection process
+            // Execute the injection process using the chosen injector
             await injector.process();
-
-            console.log('Bundle injected successfully!');
+            console.log('Instrumentation Bundle Injector: Instrumentation bundle injected successfully!');
         } else {
-            console.warn('Bundle injection failed... Bundle Injector is undefined');
+            // Log a warning if no suitable injector is found for the specified technology
+            console.warn('Instrumentation Bundle Injector: Instrumentation bundle injection failed... Instrumentation Bundle Injector is undefined');
         }
     }
 }

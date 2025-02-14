@@ -8,30 +8,66 @@ import { MetricsService } from "./metrics.service";
 import { IProgressTrackable, ProgressTracker } from "./progress-tracker.service";
 
 /**
- * Service to handle telemetry collection and storage and metric computation for quality assessment.
+ * Service to manage the telemetry collection, metric computation, and quality assessment process.
  */
 export class QualityAssessmentService implements IProgressTrackable {
+    /**
+     * Engine responsible for performing assessments on quality goals using computed metrics.
+     */
     private assessmentEngine: AssessmentEngine = new AssessmentEngine();
+
+    /**
+     * Listeners that will be notified when new assessments are available.
+     * Each listener is a callback function that receives the updated list of goals.
+     */
     private assessmentUpdateListeners: ((goals: Goal[]) => void)[] = [];
+
+    /**
+     * Service responsible for computing metrics from telemetry data.
+     */
     private metricsService: MetricsService = new MetricsService();
+
+    /**
+     * Metadata about the application being instrumented, including its name, type, and bundle information.
+     */
     private appInstrumentationMetadata?: ApplicationInstrumentationMetadata;
+
+    /**
+     * Collector responsible for gathering telemetry data from the instrumented application.
+     */
     private collector?: TelemetryCollector;
+
+    /**
+     * List of quality goals selected for assessment. Each goal contains associated metrics and assessments.
+     */
     private selectedGoals: Goal[] = [];
+
+    /**
+     * The progress tracker for reporting progress during the quality assessment process.
+     * It is used to send updates about the different stages of assessment, such as metric computation and assessment completion.
+     */
     private progressTracker!: ProgressTracker;
 
-
     constructor() {
-        // Register handler for when new metrics are computed
+        // Register a handler to process new metrics when they are computed by the MetricsService.
         this.metricsService.onMetricsUpdated(this.handleNewMetrics.bind(this));
     }
 
+    /**
+     * Sets the progress tracker for reporting progress during the quality assessment process.
+     * @param progressTracker - An instance of the ProgressTracker.
+     */
     setProgressTracker(progressTracker: ProgressTracker): void {
         this.progressTracker = progressTracker;
         this.metricsService.setProgressTracker(progressTracker);
     }
 
     /**
-     * Set context (application metadata, bundle name, selected goals, and collector), allowing dynamic configuration.
+     * Sets the context for the quality assessment process, including application instrumentation metadata,
+     * selected goals, and the telemetry collector.
+     * @param appInstrumentationMetadata - Metadata for the instrumented application.
+     * @param goals - List of selected quality goals for assessment.
+     * @param collector - The telemetry collector responsible for gathering telemetry data.
      */
     setContext(appInstrumentationMetadata: ApplicationInstrumentationMetadata, goals: Goal[], collector: TelemetryCollector) {
         this.appInstrumentationMetadata = appInstrumentationMetadata;
@@ -40,25 +76,26 @@ export class QualityAssessmentService implements IProgressTrackable {
     }
 
     /**
-     * Handles newly computed metrics and updates assessments.
+     * Handles newly computed metrics by performing assessments and updating the associated quality goals.
+     * @param metrics - The list of newly computed metrics.
      */
     private async handleNewMetrics(metrics: Metric[]) {
         if (!this.progressTracker) {
-            throw new Error('Progress tracker not set in QualityAssessmentService.');
+            throw new Error('Quality Assessment Service: Progress tracker not set in QualityAssessmentService.');
         }
 
         if (!this.selectedGoals || this.selectedGoals.length === 0) {
-            console.warn('QualityAssessmentService: No goals set for assessment.');
+            console.warn('Quality Assessment Service: No goals set for assessment.');
             return;
         }
 
         this.progressTracker.notifyProgress('Quality Assessment Service: Computing new assessments...');
         console.log('Quality Assessment Service: Computing new assessments...');
 
-        // Perform assessment based on new metrics and selected goals
+        // Perform assessment for each goal using the newly computed metrics.
         const assessments = this.assessmentEngine.assessGoals(this.selectedGoals, metrics);
 
-        // Attach assessments to goals
+        // Attach the computed assessments to the respective goals.
         this.selectedGoals.forEach(goal => {
             const assessment = assessments.find(a => a.goal.name === goal.name);
             if (assessment) {
@@ -66,7 +103,7 @@ export class QualityAssessmentService implements IProgressTrackable {
             }
         });
 
-        // Save assessments to the collector's telemetry data source
+        // Store the assessments in the telemetry data source of the collector.
         const appInstrumentationMetadata = this.appInstrumentationMetadata;
         const bundleName = path.basename(appInstrumentationMetadata?.bundleName!);
 
@@ -78,35 +115,36 @@ export class QualityAssessmentService implements IProgressTrackable {
 
         console.log(`Quality Assessment Service: Assessments stored in the collector's data source for bundle ${bundleName}`);
 
-        // Notify listeners about the updated goals
+        // Notify listeners about the updated goals.
         this.notifyAssessmentUpdated(assessments.map(a => a.goal));
     }
 
     /**
      * Initiates the assessment process by computing metrics and assessing quality goals.
+     * @returns A promise that resolves with the list of updated goals.
      */
     async assessQualityGoals(): Promise<Goal[]> {
         if (!this.progressTracker) {
-            throw new Error('Progress tracker not set in QualityAssessmentService.');
+            throw new Error('Quality Assessment Service: Progress tracker not set in QualityAssessmentService.');
         }
 
         if (!this.collector || this.selectedGoals.length === 0) {
-            throw new Error("QualityAssessmentService: Collector or goals not set.");
+            throw new Error("Quality Assessment Service: Collector or goals not set.");
         }
 
         this.progressTracker.notifyProgress('Quality Assessment Service: Starting quality goal assessment...');
         console.log('Quality Assessment Service: Starting quality goal assessment...');
 
-        // Extract metrics from selected goals
+        // Extract metrics associated with the selected goals.
         const selectedMetrics = this.selectedGoals.flatMap(goal => goal.metrics);
 
-        // Compute metrics using the metrics service
+        // Compute the metrics using the metrics service.
         const computedMetrics = await this.metricsService.computeMetrics(this.collector, this.appInstrumentationMetadata!, selectedMetrics);
 
-        // Perform assessment based on the computed metrics
+        // Perform assessments based on the computed metrics.
         const assessments = this.assessmentEngine.assessGoals(this.selectedGoals, computedMetrics);
 
-        // Attach assessments to goals
+        // Attach assessments to the respective goals.
         this.selectedGoals.forEach(goal => {
             const assessment = assessments.find(a => a.goal.name === goal.name);
             if (assessment) {
@@ -114,7 +152,7 @@ export class QualityAssessmentService implements IProgressTrackable {
             }
         });
 
-        // Save assessments to the collector's telemetry data source
+        // Store the assessments in the collector's telemetry data source.
         const appInstrumentationMetadata = this.appInstrumentationMetadata;
         const bundleName = path.basename(appInstrumentationMetadata?.bundleName!);
 
@@ -126,7 +164,7 @@ export class QualityAssessmentService implements IProgressTrackable {
 
         console.log(`Quality Assessment Service: Assessments stored in the collector's data source for bundle ${bundleName}`);
 
-        // Notify listeners about the updated goals
+        // Notify listeners about the updated goals.
         this.notifyAssessmentUpdated(this.selectedGoals);
         console.log('Quality Assessment Service: Quality goal assessment completed.');
         this.progressTracker.notifyProgress('Quality Assessment Service: Quality goal assessment completed.');
@@ -135,13 +173,15 @@ export class QualityAssessmentService implements IProgressTrackable {
 
     /**
      * Registers an event listener to notify when new assessments are available.
+     * @param listener - The callback function to execute when assessments are updated.
      */
     onAssessmentUpdated(listener: (goals: Goal[]) => void): void {
         this.assessmentUpdateListeners.push(listener);
     }
 
     /**
-     * Notifies all listeners about new goal assessments.
+     * Notifies all registered listeners about new assessments for the selected goals.
+     * @param goals - The list of updated goals with new assessments.
      */
     private notifyAssessmentUpdated(goals: Goal[]): void {
         console.log('Quality Assessment Service: New assessments available, notifying listeners...');
