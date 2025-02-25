@@ -158,7 +158,6 @@ export namespace UserInteractionEvent {
  */
 export interface TelemetryConfig {
     telemetryTypes: TelemetryType[]; // An array of TelemetryType indicating the types of telemetry to collect.
-    userInteractionEvents?: UserInteractionEvent[]; // Optional array of UserInteractionEvent to monitor.
 }
 
 /**
@@ -369,13 +368,14 @@ export abstract class TelemetryCollector {
      * Can be overridden by subclasses to provide specific flushing logic.
      */
     async flushData(): Promise<void> {
-        // By default, simply call storeMetrics() and clear the telemetryData array.
-        try {
-            await this.storeTelemetry();
-            this.emit('dataFlushed', this._config.storageEndpoints); // Notify listeners
-            this.telemetryData = [];
-        } catch (error) {
-            console.log(`Error during telemetry data flushing from telemetry collector: ${error}`)
+        if (this.telemetryData.length > 0) { // check if new data is available locally (in memory)
+            try {
+                await this.storeTelemetry();
+                this.emit('dataFlushed', this._config.storageEndpoints); // Notify listeners
+                this.telemetryData = []; // Clear in-memory telemetry data
+            } catch (error) {
+                console.error(`Telemetry Collector: Error during telemetry data flushing: ${error}`);
+            }
         }
     }
 
@@ -394,12 +394,12 @@ export abstract class TelemetryCollector {
                 return; // Success, exit the retry loop
             } catch (error) {
                 retries++;
-                console.error(`Attempt ${retries} failed, retrying in ${delay}ms...`, error);
+                console.error(`Telemetry Collector: Attempt ${retries} failed, retrying in ${delay}ms...`, error);
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= backoffFactor;
             }
         }
 
-        console.error("All retry attempts failed.");
+        console.error("Telemetry Collector: All retry attempts failed.");
     }
 }

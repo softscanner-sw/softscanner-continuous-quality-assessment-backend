@@ -1,4 +1,5 @@
-import { UserEngagementMapper } from "../../modules/metrics/user-engagement/user-engagement-metrics";
+import { UserEngagementMapper } from "../../modules/metrics/interaction-capability/user-engagement/user-engagement-metrics";
+import { TimeBehaviorMapper } from "../../modules/metrics/performance-efficiency/time-behavior/time-behavior-metrics";
 import { CompositeGoal, GoalVisitor, LeafGoal } from "../goals/goals";
 import { GoalMapper, Metric } from "./metrics-core";
 
@@ -26,6 +27,9 @@ export class MetricsMapper implements GoalVisitor {
         switch (goal.name) {
             case "User Engagement":
                 this._mapper = new UserEngagementMapper();
+                break;
+            case "Time Behavior":
+                this._mapper = new TimeBehaviorMapper();
                 break;
             default:
                 this._mapper = undefined;

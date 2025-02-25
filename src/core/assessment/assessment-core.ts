@@ -1,4 +1,5 @@
-import { NUUInterpreter, NUUMetric, UIFInterpreter, UIFMetric } from "../../modules/metrics/user-engagement/user-engagement-metrics";
+import { NUUInterpreter, NUUMetric, UIFInterpreter, UIFMetric } from "../../modules/metrics/interaction-capability/user-engagement/user-engagement-metrics";
+import { ARTInterpreter, ARTMetric, TPUTInterpreter, TPUTMetric } from "../../modules/metrics/performance-efficiency/time-behavior/time-behavior-metrics";
 import { ApplicationMetadata } from "../application/application-metadata";
 import { Goal } from "../goals/goals";
 import { Metric } from "../metrics/metrics-core";
@@ -79,8 +80,12 @@ export class AssessmentEngine {
                 return new NUUInterpreter(metric as NUUMetric, selectedGoals);
             case "UIF":
                 return new UIFInterpreter(metric as UIFMetric, selectedGoals);
+            case "ART":
+                return new ARTInterpreter(metric as ARTMetric, selectedGoals);
+            case "TPUT":
+                return new TPUTInterpreter(metric as TPUTMetric, selectedGoals);
             default:
-                console.warn(`No interpreter available for metric: ${metric.name}`);
+                console.warn(`Assessment Engine: No interpreter available for metric: ${metric.name}`);
                 return null;
         }
     }
@@ -119,7 +124,7 @@ export class AssessmentEngine {
                     const weight = interpreter.assignWeight();
                     assessment.addAssessment(metric.acronym, value, weight, new Date().toISOString());
                 } else {
-                    console.warn(`No interpreter found for metric: ${metric.acronym}`);
+                    console.warn(`Assessment Engine: No interpreter available for metric: ${metric.name}`);
                 }
             });
 

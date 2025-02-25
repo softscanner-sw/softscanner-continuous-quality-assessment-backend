@@ -43,7 +43,7 @@ export class MetricsComputer {
      * @param appInstrumentationMetadata - Metadata related to the application and its instrumentation bundle.
      */
     async onTelemetryUpdate(storageEndpoint: TelemetryStorageEndpoint, appInstrumentationMetadata: ApplicationInstrumentationMetadata): Promise<void> {
-        console.log(`MetricsComputer: Processing telemetry data at ${storageEndpoint.uri}`);
+        console.log(`Metrics Computer: Processing telemetry data at ${storageEndpoint.uri}`);
 
         // Compute metrics based on telemetry data
         this.computeMetrics(storageEndpoint, appInstrumentationMetadata);
@@ -71,7 +71,7 @@ export class MetricsComputer {
             // Compute the new values for each metric using the telemetry data
             this.metrics.forEach(metric => {
                 metric.computeValue(telemetryData);
-                console.log(`MetricsComputer: Metric "${metric.name}" computed with value: ${metric.value}`);
+                console.log(`Metrics Computer: Metric "${metric.name}" computed with value: ${metric.value}`);
             });
         } finally {
             // Disconnect from the telemetry data source to ensure proper resource cleanup

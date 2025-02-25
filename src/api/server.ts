@@ -53,8 +53,6 @@ app.get('/api/quality-model', (req: Request, res: Response) => {
 app.post('/api/assessment', async (req: Request, res: Response) => {
     const { metadata, selectedGoals } = req.body;
 
-    // console.log('Received Raw Metadata:', JSON.stringify(metadata, null, 2));
-
     // Validate the request payload
     if (!metadata || !selectedGoals) {
         res.status(400).send({ error: 'Invalid request payload' });
@@ -179,6 +177,7 @@ app.get('/api/assessments', (req: Request, res: Response) => {
                 name: goal.name,
                 description: goal.description,
                 weight: goal.weight,
+                parent: goal.parent,
                 metrics: goal.metrics.map(metric => ({
                     name: metric.name,
                     acronym: metric.acronym,

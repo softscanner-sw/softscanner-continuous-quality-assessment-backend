@@ -54,11 +54,11 @@ export class FileTelemetryDataSource extends TelemetryDataSource {
             }
 
             // Validate required attributes
-            if (!parsedData.telemetryData[0].attributes || !parsedData.telemetryData[0].attributes["event_type"])
+            if (!parsedData.telemetryData[0].attributes)
                 console.warn("File Telemetry DataSource: Invalid telemetry data:", parsedData);
 
         } catch (error) {
-            console.error(`FileTelemetryDataSource: Failed to read file at ${this.filePath}.`, error);
+            console.error(`File Telemetry DataSource: Failed to read file at ${this.filePath}.`, error);
         }
 
         return parsedData;

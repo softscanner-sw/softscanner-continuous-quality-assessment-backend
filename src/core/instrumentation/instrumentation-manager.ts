@@ -1,9 +1,9 @@
 import { OpenTelemetryInstrumentationGenerator } from "../../modules/instrumentation/opentelemetry/opentelemetry-instrumentation";
-import { OpenTelemetryAutomaticTracingOptions, OpenTelemetryTracingInstrumentationConfig } from "../../modules/instrumentation/opentelemetry/tracing/opentelemetry-instrumentation-tracing-core";
+import { OpenTelemetryAutomaticTracingOptions, OpenTelemetryNodeAutomaticTracingOptions, OpenTelemetryTracingInstrumentationConfig, OpenTelemetryWebAutomaticTracingOptions } from "../../modules/instrumentation/opentelemetry/tracing/opentelemetry-instrumentation-tracing-core";
 import { ApplicationMetadata } from "../application/application-metadata";
 import { Metric } from "../metrics/metrics-core";
-import { TelemetryExportDestinationType, TelemetryExportProtocol, TelemetryType, UserInteractionEvent } from "../telemetry/telemetry";
-import { InstrumentationBundle } from "./instrumentation-core";
+import { TelemetryConfig, TelemetryExportDestinationType, TelemetryExportProtocol, TelemetryType, UserInteractionEvent } from "../telemetry/telemetry";
+import { DefaultInstrumentationBundle, InstrumentationBundle, InstrumentationGenerator } from "./instrumentation-core";
 
 /**
  * The `InstrumentationManager` is responsible for configuring the generation of specific instrumentation files
@@ -27,38 +27,54 @@ export class InstrumentationManager {
             new Set(metrics.flatMap(metric => metric.requiredTelemetry))
         );
 
-        // Define the instrumentation configuration (OpenTelemetry tracing configuration by default)
-        const telemetryConfig = new OpenTelemetryTracingInstrumentationConfig(
-            telemetryTypes,
-            [{
-                type: TelemetryExportDestinationType.LOCAL_COLLECTOR,   // Set the destination to a local collector
-                protocol: TelemetryExportProtocol.WEB_SOCKETS,          // Use WebSockets as the transport protocol
-                url: 'ws://localhost:8081'                             // WebSocket server for telemetry collection
-            }],
-            new OpenTelemetryAutomaticTracingOptions(
-                {
-                    enabled: true,  // Enable automatic tracing
-                    events: UserInteractionEvent.getMainEvents()  // Specify main user interaction events to capture
-                },
-                false, // Tracing for page loads
-                false, // Fetch API calls tracking
-                false, // Ajax Requests tracking
-                true,  // Application Session ID tracking
-                true   // Application Metadata tracking
-            )
-        );
+        let telemetryConfig: TelemetryConfig;
+        let generator: InstrumentationGenerator;
+        let bundle: InstrumentationBundle = new DefaultInstrumentationBundle();
 
-        // Create an instance of an instrumentation generator with the given configuration (OpenTelemetry instrumentation generator by default)
-        const generator = new OpenTelemetryInstrumentationGenerator(appMetadata, metrics, telemetryConfig);
+        // Examine telemetry types to see if tracing is required
+        // to generate the appropriate automatic tracing configuration appropriately
+        if (telemetryTypes.includes(TelemetryType.TRACING)) {
+            let autoTracingConfig: OpenTelemetryAutomaticTracingOptions;
+            if (appMetadata.type.toLowerCase().includes('frontend')) {
+                autoTracingConfig = new OpenTelemetryWebAutomaticTracingOptions({
+                    userInteractions: {
+                        enabled: true,  // Enable automatic tracing
+                        events: UserInteractionEvent.getMainEvents()  // Specify main user interaction events to capture
+                    }
+                });
+            }
 
-        // Generate instrumentation files based on the defined metrics and telemetry types
-        await generator.generateInstrumentationFiles();
+            else if (appMetadata.type.toLowerCase().includes('backend')) {
+                if (appMetadata.technology.toLowerCase().includes('node'))
+                    autoTracingConfig = new OpenTelemetryNodeAutomaticTracingOptions({
+                        http: true,
+                        express: true
+                    });
+            }
 
-        // Bundle the generated instrumentation files for deployment
-        await generator.generateInstrumentationBundle();
+            // Define the instrumentation configuration (OpenTelemetry tracing configuration by default)
+            telemetryConfig = new OpenTelemetryTracingInstrumentationConfig(
+                telemetryTypes,
+                [{
+                    type: TelemetryExportDestinationType.LOCAL_COLLECTOR,   // Set the destination to a local collector
+                    protocol: TelemetryExportProtocol.WEB_SOCKETS,          // Use WebSockets as the transport protocol
+                    url: 'ws://localhost:8081'                             // WebSocket server for telemetry collection
+                }],
+                autoTracingConfig!
+            );
 
-        // Retrieve the generated instrumentation bundle
-        const bundle = generator.getInstrumentationBundle();
+            // Create an instance of an instrumentation generator with the given configuration (OpenTelemetry instrumentation generator by default)
+            generator = new OpenTelemetryInstrumentationGenerator(appMetadata, metrics, telemetryConfig as OpenTelemetryTracingInstrumentationConfig);
+
+            // Generate instrumentation files based on the defined metrics and telemetry types
+            await generator.generateInstrumentationFiles();
+
+            // Bundle the generated instrumentation files for deployment
+            await generator.generateInstrumentationBundle();
+
+            // Retrieve the generated instrumentation bundle
+            bundle = generator.getInstrumentationBundle();
+        }
 
         console.log('Instrumentation Manager: Instrumentation generation completed successfully!');
 

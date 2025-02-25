@@ -1,4 +1,5 @@
 import { AngularInstrumentationBundleInjector } from "../../modules/instrumentation/angular/angular-bundle-injector";
+import { NodeInstrumentationBundleInjector } from "../../modules/instrumentation/node/node-bundle-injector";
 import { ReactInstrumentationBundleInjector } from "../../modules/instrumentation/react/react-bundle-injector";
 import { ApplicationMetadata } from "../application/application-metadata";
 import { InstrumentationBundle, InstrumentationBundleInjector } from "./instrumentation-core";
@@ -26,11 +27,16 @@ export class BundleInjector {
         let injector: InstrumentationBundleInjector | null = null;
 
         // Choose the appropriate injector based on the application's technology
-        if (technology === 'angular')
+        if (technology.includes('angular')) {
             // Create an instance of the Angular bundle injector
             injector = new AngularInstrumentationBundleInjector(appMetadata, bundle);
-        else if (technology === 'react')
+        } else if (technology.includes('react')) {
+            // Create an instance of the React bundle injector
             injector = new ReactInstrumentationBundleInjector(appMetadata, bundle);
+        } else if (technology.includes('node')) {
+            // Create an instance of the Node bundle injector
+            injector = new NodeInstrumentationBundleInjector(appMetadata, bundle);
+        }
 
         if (injector) {
             // Execute the injection process using the chosen injector

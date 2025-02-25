@@ -32,15 +32,15 @@ export class TelemetryService implements IProgressTrackable {
      */
     async setupTelemetryCollector(appInstrumentationMetadata: ApplicationInstrumentationMetadata): Promise<TelemetryCollector> {
         // Notify the progress tracker about generating the telemetry collector configuration
-        console.log('Telemetry service: Generating configuration file for telemetry collector...');
+        console.log('Telemetry Service: Generating configuration file for telemetry collector...');
         this.progressTracker.notifyProgress('Telemetry service: Generating configuration file for telemetry collector...');
 
         // Generate the configuration for the telemetry collector
-        const collectorConfig = this.generateTelemetryCollectorConfiguration(appInstrumentationMetadata, TelemetryStorageEndpointType.DATABASE);
+        const collectorConfig = this.generateTelemetryCollectorConfiguration(appInstrumentationMetadata, TelemetryStorageEndpointType.FILE);
 
         // Set up and start the WebSocket telemetry collector using the generated configuration
         const collector = new WebSocketTelemetryCollector(collectorConfig, collectorConfig.port);
-        console.log(`Telemetry service: Telemetry collector server is running on ws://localhost:${collectorConfig.port}`);
+        console.log(`Telemetry Service: Telemetry collector server is running on ws://localhost:${collectorConfig.port}`);
         this.progressTracker.notifyProgress(`Telemetry service: Telemetry collector server is running on ws://localhost:${collectorConfig.port}`);
 
         return collector;
@@ -70,19 +70,17 @@ export class TelemetryService implements IProgressTrackable {
             const { appMetadata, bundleName } = appInstrumentationMetadata;
             const normalizedAppName = appMetadata.generateNormalizedApplicationName('-');
             const projectRootPath = path.resolve(__dirname, '../../'); // Get the project root folder path
-            const storageFilesRootFolder: string = path.join(projectRootPath, 'assets', 'files'); // Path to store telemetry files
-            const appStorageFolderPath = path.join(storageFilesRootFolder, normalizedAppName);
-            const telemetryFileName = path.basename(bundleName).replace('.bundle.js', '.json');
+            const storageFilesRootFolder: string = path.join(projectRootPath, 'assets', 'files').replace(/\\/g, '/'); // Path to store telemetry files
+            const appStorageFolderPath = path.join(storageFilesRootFolder, normalizedAppName).replace(/\\/g, '/');
+            const telemetryFileName = path.basename(bundleName).replace('.bundle.js', '.json').replace(/\\/g, '/');
 
             // Ensure the folder structure for storing telemetry data exists
             if (!fs.existsSync(appStorageFolderPath)) {
                 fs.mkdirSync(appStorageFolderPath, { recursive: true });
-                console.log(`Telemetry service: Created folder for telemetry data: ${appStorageFolderPath}`);
+                console.log(`Telemetry Service: Created folder for telemetry data: ${appStorageFolderPath}`);
             }
 
             const uri = path.join(appStorageFolderPath, telemetryFileName); // Full path to the telemetry file
-
-            // console.log(`TelemetryService: Generated URI for storage endpoint: ${uri}`);
 
             storageEndpoint = {
                 type: TelemetryStorageEndpointType.FILE,
@@ -92,13 +90,14 @@ export class TelemetryService implements IProgressTrackable {
 
         }
 
-        console.log(`TelemetryService: Configured storage endpoint: ${JSON.stringify(storageEndpoint)}`);
+        console.log(`Telemetry Service: Configured storage endpoint: ${JSON.stringify(storageEndpoint, null, 2)}`);
 
         // Return the telemetry collector configuration with the specified storage endpoint and port
         return {
             port: 8081,                  // The port on which the telemetry collector will run
             storageEndpoints: [storageEndpoint], // List of configured storage endpoints
-            dataFormat: "JSON"           // Format of the telemetry data (JSON)
+            dataFormat: "JSON",          // Format of the telemetry data (JSON)
+            flushInterval: 3000          // Telemetry data will be flushed periodically every 3 seconds
         };
     }
 }

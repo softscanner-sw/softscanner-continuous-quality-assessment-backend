@@ -1,8 +1,8 @@
-import { Goal } from "../../../core/goals/goals";
-import { GoalMapper, Metric } from "../../../core/metrics/metrics-core";
-import { MetricInterpreter } from "../../../core/metrics/metrics-interpreters";
-import { TelemetryType, UserInteractionEvent } from "../../../core/telemetry/telemetry";
-import { Utils } from "../../../core/util/util-core";
+import { Goal } from "../../../../core/goals/goals";
+import { GoalMapper, Metric } from "../../../../core/metrics/metrics-core";
+import { MetricInterpreter } from "../../../../core/metrics/metrics-interpreters";
+import { TelemetryType, UserInteractionEvent } from "../../../../core/telemetry/telemetry";
+import { Utils } from "../../../../core/util/util-core";
 
 /**
  * Represents the metric for calculating the Number of Unique Users (NUU) in an application.
@@ -14,7 +14,8 @@ export class NUUMetric extends Metric {
     constructor(
         private _nbSessions: number = 1,
     ) {
-        super("Number of Unique Users", "Number of distinct users using an application", "users", "NUU");
+        // The metric requires tracing telemetry
+        super("Number of Unique Users", "Number of distinct users using an application", "users", "NUU", [TelemetryType.TRACING]);
     }
 
     /**
@@ -29,7 +30,7 @@ export class NUUMetric extends Metric {
      */
     set nbSessions(nbSessions: number) {
         if (this._nbSessions === 0) {
-            throw new Error("Number of sessions cannot be zero.");
+            throw new Error("NUUMetric: Number of sessions cannot be zero.");
         }
 
         this._nbSessions = nbSessions;
@@ -99,7 +100,8 @@ export class UIFMetric extends Metric {
         private _nbSessions: number = 1,
         private _selectedEvents: UserInteractionEvent[] = UserInteractionEvent.getAllEvents(),
     ) {
-        super("User Interaction Frequency", "How frequently users interact with the software during a typical session", "interactions/session", "UIF");
+        // The metric requires tracing telemetry
+        super("User Interaction Frequency", "How frequently users interact with the software during a typical session", "interactions/session", "UIF", [TelemetryType.TRACING]);
     }
 
     /**
@@ -128,7 +130,7 @@ export class UIFMetric extends Metric {
      */
     set nbSessions(nbSessions: number) {
         if (this._nbSessions === 0) {
-            throw new Error("Number of sessions cannot be zero.");
+            throw new Error("UIFMetric: Number of sessions cannot be zero.");
         }
 
         this._nbSessions = nbSessions;
@@ -205,7 +207,7 @@ export class UIFInterpreter extends MetricInterpreter {
  * Number of Unique Users (NUU) and User Interaction Frequency (UIF).
  */
 export class UserEngagementMapper implements GoalMapper {
-    
+
     /**
      * Maps the **User Engagement** goal to its metrics (NUU and UIF).
      * @param goal The goal to map.
@@ -213,13 +215,11 @@ export class UserEngagementMapper implements GoalMapper {
      */
     map(goal: Goal) {
         if (goal.name !== "User Engagement")
-            throw new Error(`Incorrect Mapper for Goal ${goal.name}`);
+            throw new Error(`UserEngagementMapper: Incorrect Mapper for Goal ${goal.name}`);
 
-        const nuu = new NUUMetric();
-        nuu.setRequiredTelemetry([TelemetryType.TRACING]); // Metric requires tracing telemetry.
-        const uif = new UIFMetric();
-        uif.setRequiredTelemetry([TelemetryType.TRACING]); // Metric requires tracing telemetry.
-
-        goal.metrics.push(nuu, uif);
+        goal.metrics.push(
+            new NUUMetric(),
+            new UIFMetric()
+        );
     }
 }

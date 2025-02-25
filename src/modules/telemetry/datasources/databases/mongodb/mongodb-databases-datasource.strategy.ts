@@ -65,16 +65,11 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
             try {
                 const appDoc = await this.getApplicationDocument(normalizedAppName);
 
-                // console.log(`MongoDB Telemetry Data Source: Read Application Document: ${JSON.stringify(appDoc, null, 2)}`);
-
                 // Check if the bundle already exists
                 const existingBundle = appDoc!.bundles.find((bundle: any) => bundle.name === bundleName);
                 if (existingBundle) {
-                    // console.log(`MongoDB Telemetry Data Source: Read Application Bundle Document: ${JSON.stringify(existingBundle, null, 2)}}`);
                     let telemetryData = existingBundle.telemetryData;
-
                     console.log(`MongoDB Telemetry DataSource: Read telemetry data in MongoDB for bundle ${bundleName}.`);
-                    // console.log(`MongoDB Telemetry Data Source: Read telemetry data: ${telemetryData}`);
                     return telemetryData;
                 }
             } catch (error) {

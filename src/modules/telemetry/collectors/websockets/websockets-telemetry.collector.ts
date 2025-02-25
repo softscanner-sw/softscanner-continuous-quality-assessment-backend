@@ -10,6 +10,7 @@ import { FileTelemetryDataSource } from "../../datasources/filesystems/filesyste
  */
 export class WebSocketTelemetryCollector extends TelemetryCollector {
     private wss: WebSocketServer; // WebSocket server instance
+    private flushTimer?: NodeJS.Timeout;
 
     /**
      * Initializes the WebSocket telemetry collector with specific configurations and port.
@@ -22,6 +23,7 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
         super(config);  // Call the parent class constructor
         this.wss = new WebSocketServer({ port }); // Create a new WebSocket server on the specified port
         this.setupWebSocketServer(); // Setup event listeners for the WebSocket server
+        this.setupPeriodicDataFlushes(); // Setup periodic telemetry data flushes
     }
 
     /**
@@ -30,7 +32,7 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
     private setupWebSocketServer(): void {
         // Event triggered when a new client connects
         this.wss.on('connection', ws => {
-            console.log('Collector: Client connected');
+            console.log('WebSocket Telemetry Collector: Client connected');
 
             // Event triggered when a message is received from a client
             ws.on('message', async message => {
@@ -39,23 +41,38 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
 
             // Event triggered when the client disconnects
             ws.on('close', async () => {
-                console.log('Collector: Client disconnected');
+                console.log('WebSocket Telemetry Collector: Client disconnected');
                 try {
                     // Attempt to flush and store the collected telemetry data on client disconnect
                     await this.handleRetry(() => this.flushData());
-                    console.log('Collector: Telemetry data flushed and stored.');
+                    console.log('WebSocket Telemetry Collector: Telemetry data flushed and stored.');
                 } catch (error) {
-                    console.error('Collector: Failed to flush and store telemetry data:', error);
+                    console.error('WebSocket Telemetry Collector: Failed to flush and store telemetry data:', error);
                 }
             });
 
             // Event triggered when an error occurs in the WebSocket connection
             ws.on('error', error => {
-                console.error(`Collector: WebSocket error: ${error}`);
+                console.error(`WebSocket Telemetry Collector: WebSocket error: ${error}`);
             });
         });
 
-        console.log(`Collector: WebSocket server started on ws://localhost:${this.port}`);
+        console.log(`WebSocket Telemetry Collector: WebSocket server started on ws://localhost:${this.port}`);
+    }
+
+    private setupPeriodicDataFlushes(): void {
+        // Use the flushInterval from the config or default to 5 seconds.
+        const flushInterval = this._config.flushInterval || 5000;
+        // Schedule periodic telemetry flushes.
+        this.flushTimer = setInterval(async () => {
+            try {
+                // Use your retry logic to flush the data
+                await this.handleRetry(() => this.flushData());
+                console.log("WebSocket Telemetry Collector: Periodic flush successful.");
+            } catch (error) {
+                console.error("WebSocket Telemetry Collector: Periodic flush failed:", error);
+            }
+        }, flushInterval);
     }
 
     /**
@@ -67,11 +84,11 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
             // Parse the JSON string to extract telemetry objects
             const telemetryObjects: any[] = JSON.parse(data);
             telemetryObjects.forEach((telemetryObject) => {
-                // console.log(`Trace: ${JSON.stringify(telemetryObject)}`);
+                // console.debug(`WebSocket Telemetry Collector (Debug): Trace: ${JSON.stringify(telemetryObject)}`);
                 this.telemetryData.push(telemetryObject); // Add each telemetry object to the internal storage
             });
         } catch (error) {
-            console.error('Collector: Error processing telemetry data:', error);
+            console.error('WebSocket Telemetry Collector: Error processing telemetry data:', error);
         }
     }
 

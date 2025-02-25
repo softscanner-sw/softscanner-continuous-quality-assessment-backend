@@ -1,60 +1,36 @@
 import * as fs from "fs";
 import * as path from "path";
-import webpack from "webpack";
 
 import { ApplicationMetadata } from "../../../core/application/application-metadata";
-import { ApplicationInstrumentationMetadata, InstrumentationBundle, InstrumentationGenerator } from "../../../core/instrumentation/instrumentation-core";
+import { ApplicationInstrumentationMetadata, InstrumentationBundle, InstrumentationBundler, InstrumentationGenerator } from "../../../core/instrumentation/instrumentation-core";
 import { Metric } from "../../../core/metrics/metrics-core";
 import { TelemetryExportProtocol, TelemetryType } from "../../../core/telemetry/telemetry";
+import { EsBuildBundler } from "../esbuild/esbuild-bundler";
+import { WebpackBundler } from "../webpack/webpack-bundler";
 import { OpenTelemetryInstrumentationConfig, OpenTelemetryInstrumentationStrategy } from "./opentelemetry-core";
-import { OpenTelemetryMetadataSpanProcessingInstrumentationStrategy, OpenTelemetrySessionDataInstrumentationStrategy, OpenTelemetryTracingInstrumentationStrategy, OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy } from "./tracing/opentelemetry-instrumentation-tracing";
+import { OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy } from "./tracing/exportation/opentelemetry-instrumentation-tracing-websockets-exportation";
+import { OpenTelemetryTracingInstrumentationStrategy } from "./tracing/opentelemetry-instrumentation-tracing";
+import { OpenTelemetryNodeTracingInstrumentationAdapter, OpenTelemetryTracingInstrumentationAdapter, OpenTelemetryWebTracingInstrumentationAdapter } from "./tracing/opentelemetry-instrumentation-tracing-adapters";
 import { OpenTelemetryTracingInstrumentationConfig } from "./tracing/opentelemetry-instrumentation-tracing-core";
+import { OpenTelemetryMetadataSpanProcessingInstrumentationStrategy } from "./tracing/processing/opentelemetry-instrumentation-tracing-app-metadata";
+import { OpenTelemetrySessionDataInstrumentationStrategy } from "./tracing/processing/opentelemetry-instrumentation-tracing-session-data";
 
 /**
  * Class responsible for generating OpenTelemetry instrumentation files and bundles for an application.
  * It extends the InstrumentationGenerator to provide telemetry-specific instrumentation for tracing, metrics, etc.
  */
 export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenerator {
+    private instrumentationAdapter?: OpenTelemetryTracingInstrumentationAdapter;
+    private instrumentationBundlerAdapter?: OpenTelemetryInstrumentationBundlerAdapter;
     // Constructor for initializing the generator with application metadata, metrics, and telemetry configuration
     constructor(application: ApplicationMetadata,
         metrics: Metric[],
         telemetryConfig: OpenTelemetryInstrumentationConfig
     ) {
-        super(application, metrics);
-        this.telemetryConfig = telemetryConfig;
-    }
+        super(application, metrics, telemetryConfig);
 
-    /**
-     * Returns the list of dependencies required for OpenTelemetry instrumentation.
-     * These dependencies are lazily initialized and returned only once.
-     */
-    public instrumentationDependencies(): string[] {
-        // If the dependencies haven't already been set
-        if (this.dependencies.length === 0) {
-            // opentelemetry dependencies
-            this.dependencies = [
-                "@opentelemetry/api",
-                "@opentelemetry/auto-instrumentations-web",
-                "@opentelemetry/context-zone",
-                "@opentelemetry/core",
-                "@opentelemetry/exporter-trace-otlp-http",
-                "@opentelemetry/instrumentation",
-                "@opentelemetry/resources",
-                "@opentelemetry/sdk-trace-base",
-                "@opentelemetry/sdk-trace-web",
-                "@opentelemetry/semantic-conventions",
-                "ws",
-                "babel-polyfill",
-                "uuid",
-                "path-browserify",
-                "@types/uuid",
-                "@types/path-browserify",
-                "webpack",
-                "terser-webpack-plugin",
-            ];
-        }
-
-        return this.dependencies;
+        // Initialize instrumentation adapter setup
+        this.setupInstrumentationAdapter();
     }
 
     /**
@@ -73,15 +49,52 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
      * Determines whether utility instrumentation files (e.g., for session data, app metadata) are needed.
      */
     protected requiresUtilityInstrumentationFiles(): boolean {
-        let telemetryConfig = null;
         let requires = false;
-        if (this.requiresTelemetryType(TelemetryType.TRACING) && this.telemetryConfig) {
-            telemetryConfig = this.telemetryConfig as OpenTelemetryTracingInstrumentationConfig;
-            requires = telemetryConfig!!.automaticTracingOptions.sessionData
+        if (this.requiresTelemetryType(TelemetryType.TRACING)) {
+            let telemetryConfig = this.telemetryConfig as OpenTelemetryTracingInstrumentationConfig;
+            requires = telemetryConfig.automaticTracingOptions.sessionData
                 || telemetryConfig!!.automaticTracingOptions.appMetadata
         }
 
         return requires;
+    }
+
+    public setupInstrumentationAdapter() {
+        if (this.requiresTelemetryType(TelemetryType.TRACING)) {
+            const tracingConfig = this.telemetryConfig as OpenTelemetryTracingInstrumentationConfig;
+            if (this.application.type.toLowerCase().includes('frontend')) {
+                this.instrumentationAdapter = new OpenTelemetryWebTracingInstrumentationAdapter(tracingConfig, this.application);
+            }
+
+            else if (this.application.type.toLowerCase().includes('backend')) {
+                if (this.application.technology.toLowerCase().includes('node'))
+                    this.instrumentationAdapter = new OpenTelemetryNodeTracingInstrumentationAdapter(tracingConfig, this.application);
+            }
+        }
+    }
+
+    public setupInstrumentationBundlerAdapter() {
+        if (this.requiresTelemetryType(TelemetryType.TRACING)) {
+            if (this.application.type.toLowerCase().includes('frontend'))
+                this.instrumentationBundler = new WebpackBundler(
+                    this.instrumentationStrategy, 
+                    this.instrumentationBundle, 
+                    this.getTypeScriptConfigPath()
+                );
+
+            else if (this.application.type.toLowerCase().includes('backend')) {
+                if (this.application.technology.toLowerCase().includes('node'))
+                    this.instrumentationBundler = new EsBuildBundler(
+                        this.instrumentationStrategy, 
+                        this.instrumentationBundle, 
+                        this.getTypeScriptConfigPath()
+                    );
+            }
+
+            this.instrumentationBundlerAdapter = new OpenTelemetryInstrumentationBundlerAdapter(
+                this.application, this.instrumentationBundler
+            );
+        }
     }
 
     /**
@@ -97,17 +110,6 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
 
         if (this.requiresTelemetryType(TelemetryType.TRACING)) {
             const tracingConfig = this.telemetryConfig as OpenTelemetryTracingInstrumentationConfig;
-            // Generate main tracing instrumentation file
-            this.instrumentationStrategy = new OpenTelemetryTracingInstrumentationStrategy(tracingConfig, appInstrumentationMetadata);
-
-            const strategy = this.instrumentationStrategy as OpenTelemetryTracingInstrumentationStrategy;
-
-            // Preparing the instrumentation bundle to export its correspoding metadata
-            this.instrumentationBundle = this.createInstrumentationBundle();
-            strategy.applicationInstrumentationMetadata.bundleName = this.instrumentationBundle.fileName;
-            appInstrumentationMetadata.bundleName = this.instrumentationBundle.fileName;
-
-            this.instrumentations.push(...this.instrumentationStrategy.generateInstrumentationFiles());
 
             // Check if application metadata is required and use the corresponding instrumentation strategy
             if (tracingConfig.automaticTracingOptions.appMetadata) {
@@ -127,6 +129,23 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
                 this.instrumentationStrategy = new OpenTelemetryWebSocketsSpanExportationInstrumentationStrategy(tracingConfig, appInstrumentationMetadata.appMetadata);
                 this.instrumentations.push(...this.instrumentationStrategy.generateInstrumentationFiles());
             }
+
+            // Initialize instrumentation bundler adapter setup
+            this.setupInstrumentationBundlerAdapter();
+
+            // Preparing the instrumentation bundle to export its corresponding metadata
+            this.instrumentationBundle = this.instrumentationBundlerAdapter!.prepareBundle();
+            appInstrumentationMetadata.bundleName = this.instrumentationBundle.fileName;
+
+            // Generate main tracing instrumentation file
+            this.instrumentationStrategy = new OpenTelemetryTracingInstrumentationStrategy(tracingConfig, appInstrumentationMetadata, this.instrumentationAdapter);
+            this.instrumentations.push(...this.instrumentationStrategy.generateInstrumentationFiles());
+
+            // Associate generated instrumentation files with the instrumentation bundle
+            this.instrumentationBundle.files = this.instrumentations;
+
+            // Associate instrumentation bundle with the instrumentation bundle adapter's bundler.
+            this.instrumentationBundler.instrumentationBundle = this.instrumentationBundle;
         }
 
         // verify that the dependencies are installed
@@ -134,6 +153,21 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
 
         // export instrumentation files into their proper paths
         await this.exportInstrumentationFiles();
+
+        // Generate typescript configuration
+        await this.generateTypeScriptConfig();
+    }
+
+    /**
+     * Returns the list of dependencies required for OpenTelemetry instrumentation.
+     * These dependencies are lazily initialized and returned only once.
+     */
+    public instrumentationDependencies(): string[] {
+        // If the dependencies haven't already been set
+        if (this.dependencies.length === 0 && this.instrumentationAdapter)
+            this.dependencies = this.instrumentationAdapter.instrumentationDependencies();
+
+        return this.dependencies;
     }
 
     /**
@@ -197,7 +231,7 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         // Write the index.ts, the main entry point of all main instrumentation files
         fs.writeFileSync(indexFilePath, importStatements);
 
-        console.log('OpenTelemetryInstrumentationGenerator: Instrumentation files generated successfully.');
+        console.log('OpenTelemetry Instrumentation Generator: Instrumentation files generated successfully.');
     }
 
     /**
@@ -211,30 +245,15 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
      * exported instrumentation files in the assets/instrumentations/<application-name>/
      */
     public async generateInstrumentationBundle(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            // Generate typescript configuration
-            this.generateTypeScriptConfig();
-
-            // Generate webpack config, then initialize and run the compiler
-            const webpackConfig = this.generateWebPackConfig();
-            const compiler = webpack(webpackConfig);
-
-            compiler.run((err, stats) => {
-                if (err) {
-                    console.error('OpenTelemetryInstrumentationGenerator: Webpack compilation error:', err);
-                    reject(err);
-                    return;
-                }
-
-                console.log(stats?.toString({
-                    colors: true, // Adds colors to the console output
-                    modules: false, // Reduce the amount of stuff printed to the console
-                    children: false // Hide child information
-                }));
-
-                console.log('OpenTelemetryInstrumentationGenerator: Instrumentation bundle generated successfully.');
+        return new Promise(async (resolve, reject) => {
+            try {
+                await this.instrumentationBundlerAdapter!.executeBuild();
                 resolve();
-            });
+            } catch (err: any) {
+                const errStr = err.toString();
+                console.error("OpenTelemetry Instrumentation Generator: Instrumentation bundle build error:", errStr);
+                reject(err);
+            }
         })
     }
 
@@ -246,7 +265,7 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
         const projectRootPath = path.resolve(__dirname, '../../../../'); // this project's root folder path
         const instrumentationStrategy = this._instrumentationStrategy as OpenTelemetryInstrumentationStrategy;
 
-        return path.join(projectRootPath, instrumentationStrategy.projectRootPath, 'tsconfig.json');
+        return path.join(projectRootPath, instrumentationStrategy.projectRootPath, 'tsconfig.json').replace(/\\/g, '/');
     }
 
     /**
@@ -270,81 +289,48 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
 
         fs.writeFileSync(tsConfigPath, JSON.stringify(tsConfig, null, 2));
     }
+}
 
-    /**
-     * Generates the instrumentation bundle from the instrumentation files of the OpenTelemetry project
-     * @returns - The instrumentation bundle from the instrumentation files of the OpenTelemetry project
-     */
-    private createInstrumentationBundle(): InstrumentationBundle {
-        const instrumentationStrategy = this._instrumentationStrategy as OpenTelemetryInstrumentationStrategy;
+export class OpenTelemetryInstrumentationBundlerAdapter {
+    constructor(
+        public appMetadata: ApplicationMetadata,
+        public instrumentationBundler: InstrumentationBundler
+    ) { }
+
+    prepareBundle(): InstrumentationBundle {
+        const instrumentationStrategy = this.instrumentationBundler.instrumentationStrategy;
         const projectRootPath = path.resolve(__dirname, '../../../../'); // this project's root folder path
 
-        const applicationNormalizedName = this.application.generateNormalizedApplicationName('_');
+        const applicationNormalizedName = this.appMetadata.generateNormalizedApplicationName('_');
         const currentDateTime = new Date().toISOString().replace(/[-:.]/g, "_");
         const bundleParentPath = path.join(projectRootPath, instrumentationStrategy.instrumentationBundleRootFolder, applicationNormalizedName);
         const bundleName = `${applicationNormalizedName}_${currentDateTime}.bundle.js`;
         const bundlePath = path.join(bundleParentPath, bundleName);
 
-        return {
+        this.instrumentationBundler.instrumentationBundle = {
             fileName: bundleName,
-            files: this.instrumentations,
-            path: bundlePath,
-            parentPath: bundleParentPath,
-            projectRootPath: path.join(projectRootPath, instrumentationStrategy.projectRootPath),
+            files: this.instrumentationBundler.instrumentationBundle.files,
+            path: bundlePath.replace(/\\/g, '/'),
+            parentPath: bundleParentPath.replace(/\\/g, '/'),
+            projectRootPath: path.join(projectRootPath, instrumentationStrategy.projectRootPath).replace(/\\/g, '/'),
             creationDate: currentDateTime,
         };
+
+        return this.instrumentationBundler.instrumentationBundle;
     }
 
-    /**
-     * Generates the Webpack config file for the generation of the instrumentation bundle
-     * of the OpenTelemetry project's instrumentation files
-     * @returns - the Webpack config file for the generation of the instrumentation bundle
-     * of the OpenTelemetry project's instrumentation files
-     */
-    private generateWebPackConfig() {
-        const instrumentationStrategy = this._instrumentationStrategy as OpenTelemetryInstrumentationStrategy;
-        const projectRootPath = path.resolve(__dirname, '../../../../'); // this project's root folder path
-
-        // this.instrumentationBundle = this.createInstrumentationBundle();
-        const tsConfigPath = this.getTypeScriptConfigPath();
-        return {
-            mode: "development" as 'development',
-            entry: path.join(projectRootPath, instrumentationStrategy.srcPath, 'index.ts'),
-            output: {
-                filename: this.instrumentationBundle.fileName,
-                path: this.instrumentationBundle.parentPath,
-            },
-            optimization: {
-                minimize: true,
-                minimizer: [new (require('terser-webpack-plugin'))()],
-            },
-            resolve: {
-                extensions: ['.ts', '.js'],
-            },
-            module: {
-                rules: [
-                    {
-                        test: /\.js$/,
-                        use: {
-                            loader: 'babel-loader',
-                            options: {
-                                presets: ['@babel/preset-env'],
-                            },
-                        },
-                        exclude: /node_modules\/(?!(@opentelemetry\/sdk|@opentelemetry\/exporter-trace-otlp-http|@opentelemetry\/instrumentation.*))/,
-                    },
-                    {
-                        test: /\.ts?$/,
-                        use: [{
-                            loader: 'ts-loader',
-                            options: {
-                                configFile: tsConfigPath
-                            }
-                        }],
-                        exclude: /node_modules\/(?!(@opentelemetry\/sdk|@opentelemetry\/exporter-trace-otlp-http|@opentelemetry\/instrumentation.*))/
-                    }
-                ],
-            },
-        };
+    async executeBuild(): Promise<void> {
+        return new Promise(async (resolve, reject) => {
+            try {
+                await this.instrumentationBundler.generateInstrumentationBundle();
+                resolve();
+            } catch (err: any) {
+                const errStr = err.toString();
+                // fs.writeFileSync("webpack-error.log", `Written from OpenTelemetry Instrumentation Bundler Adapter\n${errStr}`);
+                console.error("OpenTelemetry Instrumentation Bundler Adapter: Instrumentation bundle build error:", errStr);
+                reject(err);
+                return;
+            }
+        });
     }
 }

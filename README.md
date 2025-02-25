@@ -1,9 +1,14 @@
 # SoftScanner Backend – Continuous Quality Assessment Platform
-SoftScanner is an **automated continuous quality assessment (CQA) platform** designed for **web applications**. This backend service provides **instrumentation, telemetry collection and storage, metric computation, and continuous goal assessments** using the **SoftScanner Quality Mapping Model (SSQMM)**, aligned with **ISO/IEC 25010 (2023) standards**.
+SoftScanner is an **automated continuous quality assessment (CQA) platform** designed for **web applications**. This backend service provides dynamic **instrumentation, telemetry collection and storage, metric computation, and continuous goal assessments** using the **SoftScanner Quality Mapping Model (SSQMM)**, aligned with **ISO/IEC 25010 (2023) standards**.
 
 SoftScanner maps high-level quality goals to observable metrics through **SSQMM**. Each goal assessment is **timestamped**, enabling **historical tracking of quality trends** and **long-term storage for analysis**.
 
-Instrumentation bundles are dynamically generated and deployed to target applications, ensuring non-invasive instrumentation. The design is **modular and extensible**, making it easy to integrate with different telemetry providers such as **OpenTelemetry** for trace data and **Prometheus** for system metrics.
+Instrumentation bundles are dynamically generated and deployed to target applications in a non-invasive manner.
+The design is **modular and extensible**, making it easy to integrate with different telemetry providers (e.g., tracers, loggers, etc.) and collectors (OTLP, websockets, etc.).
+The instrumentation framework is designed to support **both frontend and backend** web applications.
+The core instrumentation logic is extended by specific implementations for the generation, bundling, and injection of instrumentation agents.
+For example, OpenTelemetry is used to generate automated tracing instrumentation agents for both frontend (*Angular, React*) and backend (*Node.js*) applications, whereas **Webpack** and **esBuild** are used to bundle frontend and backend instrumentation agents respectively.
+Moreover, specific implementations are created for the injection of instrumentation agents into Angular, React, and Node.js applications respectively.
 
 ---
 
@@ -12,9 +17,11 @@ Instrumentation bundles are dynamically generated and deployed to target applica
 - **🕒 Timestamped Goal Assessments** → Tracks assessments over time for historical analysis.  
 - **📈 Dynamic Metric Evaluations** → Computes and stores metric values with timestamps for trend tracking.  
 - **📡 API-Driven Architecture** → Exposes endpoints for **metadata, goals, metrics, and assessments**.  
-- **🛠️ Non-Invasive Instrumentation** → Dynamically injects telemetry agents without modifying application code.  
-- **⚡ Continuous Progress Updates** → Streams live progress and assessment results using **SSE events**.  
-- **📏 Quality Mapping Model (SSQMM)** → Maps **abstract stakeholder goals** to **observable metrics**.  
+- **🛠️ Non-Invasive Instrumentation** → Dynamically injects telemetry agents into target applications without modifying application code.  
+- **⚡ Continuous Progress Updates** → Streams live progress and assessment results using **Server-Sent Events (SSE) events**.  
+- **📏 Quality Mapping Model (SSQMM)** → Maps **abstract stakeholder goals** to **observable metrics**.
+- **🧩 Multi-Target Instrumentation Support** → Supports **frontend instrumentation** (Angular, React) and **backend instrumentation** (Node.js) via specialized adapters and bundling strategies.
+- **🛠️ Automated and Tailored Instrumentation Bundling** Supports **Webpack** and **esBuild** bundling for frontend and backend instrumentation agents, respectively.
 - **💾 Telemetry Collection and Storage** → Supports MongoDB and filesystem-based storage for telemetry data.  
 - **🗂️ Modular and Extensible** → Easily add new goals, metrics, and telemetry providers.
 
@@ -35,10 +42,10 @@ src/
 │   ├── telemetry/                # Core telemetry configuration and data collection and storage
 │   └── util/                     # Utility functions and dependency management
 ├── modules/
-│   ├── instrumentation/          # Instrumentation implementations and deployment
+│   ├── instrumentation/          # Instrumentation implementations (Angular, React, Node, Webpack, esBuild, OpenTelemetry)
 │   ├── metrics/                  # Metrics implementations and mappings
-│   └── telemetry/                # Telemetry collection and storage strategies
-├── services/                     # Core services (e.g., instrumentation, telemetry, metrics, quality assessment, progress tracking)
+│   └── telemetry/                # Telemetry collection and data source strategies
+├── services/                     # Core backend services (instrumentation, telemetry, metrics, quality assessment, progress tracking)
 ```
 
 ---
@@ -118,7 +125,8 @@ This will:
 1. **Compile TypeScript files**.
 2. **Launch the backend server** (`http://localhost:3000`).
 3. **Expose REST API endpoints** for quality assessment.
-4. **Enable telemetry collection, storage, and live goal assessment**.
+4. **Enable dynamic instrumentation generation and injection** (*supporting both frontend and backend agents*).
+5. **Support telemetry collection, periodic flushing, and live assessment streaming.**
 
 ---
 
@@ -131,7 +139,7 @@ SoftScanner Backend provides structured **RESTful APIs** to interact with **qual
 | **GET**  | `/api/quality-model`                | Retrieves the quality model and associated goals. |
 | **POST** | `/api/assessment`                   | Initiates a new quality assessment.               |
 | **GET**  | `/api/progress?assessmentId=XYZ`    | Streams live progress updates via SSE.            |
-| **GET**  | `/api/assessments?assessmentId=XYZ` | Streams live assessment results continously.             |
+| **GET**  | `/api/assessments?assessmentId=XYZ` | Streams live assessment results continously.      |
 
 ---
 
@@ -140,19 +148,19 @@ SoftScanner Backend provides structured **RESTful APIs** to interact with **qual
 Users select relevant **quality goals** and provide application metadata.  
 
 ### 2️⃣ Automatic Instrumentation
-SoftScanner dynamically generates and injects **telemetry agents** for runtime data collection.  
+SoftScanner dynamically generates, bundles, and injects **telemetry agents** for runtime data collection.  
 
 ### 3️⃣ Data Collection, Storage & Metric Computation
-The instrumented application continuously collects and stores **real-time data**, and **SoftScanner computes quality metrics**.
+The instrumented application continuously collects and stores **real-time data** (in the filesystem or databases (e.g., MongoDB)), and **SoftScanner computes quality metrics**.
 
 ### 4️⃣ Timestamped Goal Assessments
-- Each goal stores multiple **timestamped assessments** with metric contributions and global scores.  
+- Each goal stores multiple **timestamped assessments** that capture metric contributions and global scores.  
 - Historical tracking enables **trend analysis** and **comparative assessments**.  
 
-### 5️⃣ Continous Real-Time API Updates
-Users can:
-- **Monitor progress** (`/api/progress`).
-- **Retrieve assessment history** (`/api/assessments`).
+### 5️⃣ Real-Time API Updates
+Users can monitor:  
+- **Progress Updates:** `/api/progress` provides live progress notifications via SSE.  
+- **Assessment Results:** `/api/assessments` streams real-time quality assessments via SSE.
 
 ---
 
@@ -306,7 +314,7 @@ Alternatively, use **Postman** to interact with the backend API.
 
 ## 🛣 Roadmap
 - Move from Server-Sent Events (SSE) to WebSockets for a more scalable solution.
-- Add support for **more metrics** (e.g., Security, Ecological Footprint).
+- Add support for **more metrics** (e.g., Security, Energy Consumption).
 - Expand integration with **Prometheus** and other observability tools.  
 
 ---

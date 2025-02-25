@@ -66,18 +66,18 @@ export class MetricsService implements IProgressTrackable {
             throw new Error('Progress tracker not set in MetricsService.');
         }
 
-        console.log('Metrics service: Metrics to compute:', selectedMetrics.map(metric => metric.name));
+        console.log('Metrics Service: Metrics to compute:', selectedMetrics.map(metric => metric.name));
 
         // Ensure that there are metrics to compute
         if (selectedMetrics.length === 0) {
-            throw new Error('Metrics service: No metrics found for the selected goals.');
+            throw new Error('Metrics Service: No metrics found for the selected goals.');
         }
 
         return new Promise((resolve, reject) => {
             // Listen for the event when telemetry data is flushed (i.e., new telemetry data is available)
             collector.on('dataFlushed', async (storageEndpoints: TelemetryStorageEndpoint[]) => {
-                console.log('Metrics service: New telemetry data flushed, triggering metric computation...');
-                this.progressTracker.notifyProgress('Metrics service: New telemetry data flushed, triggering metric computation...');
+                console.log('Metrics Service: New telemetry data flushed, triggering metric computation...');
+                this.progressTracker.notifyProgress('Metrics Service: New telemetry data flushed, triggering metric computation...');
 
                 try {
                     // Iterate over all storage endpoints to compute metrics from each source
@@ -105,7 +105,7 @@ export class MetricsService implements IProgressTrackable {
 
                         // Trigger metric computation using the telemetry data source
                         await metricsComputer.onTelemetryUpdate(storageEndpoint, appInstrumentationMetadata);
-                        this.progressTracker.notifyProgress('Metrics service: Metrics computation complete.');
+                        this.progressTracker.notifyProgress('Metrics Service: Metrics computation complete.');
                     }
 
                 } catch (error) {
@@ -128,8 +128,8 @@ export class MetricsService implements IProgressTrackable {
      * @param metrics - The list of newly computed metrics
      */
     private notifyMetricsUpdated(metrics: any[]): void {
-        console.log('Metrics service: New metrics available, notifying listeners...');
-        this.progressTracker.notifyProgress('Metrics service: New metrics available, notifying listeners...');
+        console.log('Metrics Service: New metrics available, notifying listeners...');
+        this.progressTracker.notifyProgress('Metrics Service: New metrics available, notifying listeners...');
         this.metricsUpdateListeners.forEach(listener => listener(metrics));
     }
 }

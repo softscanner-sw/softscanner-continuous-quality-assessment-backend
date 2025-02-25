@@ -3,7 +3,7 @@ import * as path from "path";
 import { ApplicationMetadata } from "../application/application-metadata";
 import { Metric } from "../metrics/metrics-core";
 import { TelemetryConfig, TelemetryType } from "../telemetry/telemetry";
-import { DependencyManager } from "../util/dependency-management";
+import { NPMDependencyManager } from "../util/dependency-management";
 
 /**
  * Represents a single file of source code to be used in instrumentation.
@@ -103,7 +103,7 @@ export abstract class AbstractInstrumentationBundle implements InstrumentationBu
      */
     static extractNormalizedAppNameFromBundle(bundleName: string, separator: string = '_'): string {
         if (!bundleName) {
-            console.warn(`Invalid bundle name: ${bundleName}`);
+            console.warn(`Abstract Instrumentation Bundle: Invalid bundle name: ${bundleName}`);
             return '';
         }
 
@@ -216,7 +216,25 @@ export abstract class AbstractInstrumentationStrategy implements Instrumentation
  * Provides a default implementation for an instrumentation strategy.
  * Useful as a fallback or placeholder strategy.
  */
-export class DefaultInstrumentationStrategy implements InstrumentationStrategy {
+export class DefaultInstrumentationStrategy extends AbstractInstrumentationStrategy {
+
+    constructor(
+        _config: TelemetryConfig, // Configuration for telemetry collection.
+        _application: ApplicationMetadata, // Metadata of the target application.
+        _instrumentationFilesRootFolder: string = path.join('assets', 'instrumentations'),
+        _instrumentationBundleRootFolder: string = path.join('assets', 'bundles')
+    ) {
+        super(_config, _application, _instrumentationFilesRootFolder, _instrumentationBundleRootFolder);
+    }
+
+    public generateImportations(): string {
+        throw new Error("Method not implemented.");
+    }
+
+    public generateConstants(): string {
+        throw new Error("Method not implemented.");
+    }
+
     public generateInstrumentationFiles(): Instrumentation[] {
         return [];
     }
@@ -229,9 +247,9 @@ export class DefaultInstrumentationStrategy implements InstrumentationStrategy {
 export abstract class InstrumentationGenerator {
     protected instrumentations: Instrumentation[] = []; // Array of generated instrumentation files.
     protected dependencies: string[] = [];              // Array of required dependencies for instrumentation.
-    protected telemetryConfig?: TelemetryConfig;        // Configuration for telemetry.
-    protected _instrumentationStrategy: InstrumentationStrategy = new DefaultInstrumentationStrategy();
-    protected instrumentationBundle: InstrumentationBundle = new DefaultInstrumentationBundle();
+    protected _instrumentationStrategy: AbstractInstrumentationStrategy;
+    protected instrumentationBundle: InstrumentationBundle;
+    protected instrumentationBundler: InstrumentationBundler;
 
     /**
      * Constructs an instance of the InstrumentationGenerator.
@@ -240,22 +258,28 @@ export abstract class InstrumentationGenerator {
      */
     constructor(
         protected application: ApplicationMetadata,     // Metadata of the target application.
-        protected metrics: Metric[]                     // Metrics mapped to required telemetry.
-    ) { }
+        protected metrics: Metric[],                     // Metrics mapped to required telemetry.
+        protected telemetryConfig?: TelemetryConfig       // Configuration for telemetry.
+    ) {
+        this._instrumentationStrategy = new DefaultInstrumentationStrategy(this.telemetryConfig!, application);
+        this.instrumentationBundle = new DefaultInstrumentationBundle();
+        this.instrumentationBundler = new DefaultInstrumentationBundler(this._instrumentationStrategy, this.instrumentationBundle);
+
+    }
 
     /* Getters and setters for accessing and updating the instrumentation strategy */
 
     /**
      * Gets the instrumentation strategy of the instrumentation generator
      */
-    get instrumentationStrategy() {
+    get instrumentationStrategy(): AbstractInstrumentationStrategy {
         return this._instrumentationStrategy;
     }
 
     /**
      * Sets the instrumentation strategy of the instrumentation generator
      */
-    set instrumentationStrategy(strategy: InstrumentationStrategy) {
+    set instrumentationStrategy(strategy: AbstractInstrumentationStrategy) {
         this._instrumentationStrategy = strategy;
     }
 
@@ -282,10 +306,10 @@ export abstract class InstrumentationGenerator {
      * @returns - true if all the necessary dependencies are installed and validated, false otherwise
      */
     public async validateDependencies(): Promise<boolean> {
-        if (!DependencyManager.areDependenciesInstalled(this.instrumentationDependencies())) {
-            console.log("Some dependencies are missing. Attempting to install...");
-            DependencyManager.installNPMDependencies(this.instrumentationDependencies());
-            return DependencyManager.areDependenciesInstalled(this.instrumentationDependencies());
+        if (!NPMDependencyManager.areDependenciesInstalled(this.instrumentationDependencies())) {
+            console.log("Instrumentation Generator: Some dependencies are missing. Attempting to install...");
+            NPMDependencyManager.installNPMDependencies(this.instrumentationDependencies());
+            return NPMDependencyManager.areDependenciesInstalled(this.instrumentationDependencies());
         }
 
         return true;
@@ -338,13 +362,35 @@ export abstract class InstrumentationGenerator {
      * Must be implemented to generate the actual instrumentation files.
      * Will use the instrumentation strategy in the process
      */
-    public abstract generateInstrumentationFiles(): void;
+    public abstract generateInstrumentationFiles(): Promise<void>;
 
     /**
      * An abstract method to generate the instrumentation bundle by the instrumentation generator
      * Must be implemented to bundle the generated instrumentation files into a single executable package.
      */
     public abstract generateInstrumentationBundle(): Promise<void>;
+}
+
+export abstract class InstrumentationBundler {
+    constructor(
+        public instrumentationStrategy: AbstractInstrumentationStrategy,
+        public instrumentationBundle: InstrumentationBundle,
+    ) { }
+
+    abstract generateInstrumentationBundle(): Promise<void>;
+}
+
+export class DefaultInstrumentationBundler extends InstrumentationBundler {
+    constructor(
+        instrumentationStrategy: AbstractInstrumentationStrategy,
+        instrumentationBundle: InstrumentationBundle,
+    ) {
+        super(instrumentationStrategy, instrumentationBundle);
+    }
+
+    async generateInstrumentationBundle() {
+
+    }
 }
 
 /**
@@ -359,13 +405,11 @@ export abstract class InstrumentationBundleInjector {
      * @param application The target application metadata.
      * @param bundle The generated instrumentation bundle.
      * @param bundleDestinationParentPath Absolute path of the parent folder in the application where the bundle will be placed.
-     * @param targetHTMLPagePath Absolute path to the HTML page where the bundle will be injected.
      */
     constructor(
         protected application: ApplicationMetadata, // the target application
         protected bundle: InstrumentationBundle, // The generated instrumentation bundle.
         protected bundleDestinationParentPath: string = "", // The destination folder path in the application where the bundle will be placed.
-        protected targetHTMLPagePath: string = "", // the target HTML page path where the bundle will be injected
     ) { }
 
     /**
@@ -385,12 +429,42 @@ export abstract class InstrumentationBundleInjector {
     protected abstract preInject(): Promise<void>;
 
     /**
-     * Injects the bundle into the target HTML page by appending a <script> tag.
+     * Method to define bundle injection into the target web application.
+     * To be implemented by subclasses based on specific needs
+     */
+    protected abstract inject(): Promise<void>;
+
+    /**
+     * Method to define actions to be performed after injection.
+     * To be implemented by subclasses based on specific needs.
+     */
+    protected abstract postInject(): Promise<void>;
+}
+
+export abstract class FrontendInstrumentationBundleInjector extends InstrumentationBundleInjector {
+    /**
+     * Constructor to initialize the frontend bundle injector.
+     * @param application The target frontend application metadata.
+     * @param bundle The generated instrumentation bundle.
+     * @param bundleDestinationParentPath Absolute path of the parent folder in the application where the bundle will be placed.
+     * @param targetHTMLPagePath Absolute path to the HTML page where the bundle will be injected.
+     */
+    constructor(
+        application: ApplicationMetadata, // the target application
+        bundle: InstrumentationBundle, // The generated instrumentation bundle.
+        bundleDestinationParentPath: string = "", // The destination folder path in the application where the bundle will be placed.
+        protected targetHTMLPagePath: string = "", // the target HTML page path where the bundle will be injected
+    ) {
+        super(application, bundle, bundleDestinationParentPath);
+    }
+
+    /**
+     * Injects the bundle into the target HTML page of the frontend app by appending a <script> tag.
      * This default implementation can be overridden by subclasses if needed.
      */
     protected async inject(): Promise<void> {
         if (!existsSync(this.targetHTMLPagePath)) {
-            console.error(`Target HTML page does not exist: ${this.targetHTMLPagePath}`);
+            console.error(`Frontend Instrumentation Bundle Injector: Target HTML page does not exist: ${this.targetHTMLPagePath}`);
             return;
         }
 
@@ -400,7 +474,7 @@ export abstract class InstrumentationBundleInjector {
         // Convert backslashes to forward slashes for cross-platform compatibility in HTML
         const scriptPath = relativePathToBundle.replace(/\\/g, '/');
 
-        console.log(`Relative path for injection: ${scriptPath}`);
+        console.log(`Frontend Instrumentation Bundle Injector: Relative path for injection: ${scriptPath}`);
 
         // Preparing the <script> element to inject
         const bundleScriptTag = `<script src="${scriptPath}"></script>`;
@@ -411,12 +485,22 @@ export abstract class InstrumentationBundleInjector {
 
         // Write updates to the file
         writeFileSync(this.targetHTMLPagePath, updatedHtmlContent);
-        console.log(`Instrumentation bundle injected successfully into ${this.targetHTMLPagePath}`);
+        console.log(`Frontend Instrumentation Bundle Injector: Instrumentation bundle injected successfully into ${this.targetHTMLPagePath}`);
     }
+}
 
+export abstract class BackendInstrumentationBundleInjector extends InstrumentationBundleInjector {
     /**
-     * Method to define actions to be performed after injection.
-     * To be implemented by subclasses based on specific needs.
+     * Constructor to initialize the backend bundle injector.
+     * @param application The target backend application metadata.
+     * @param bundle The generated instrumentation bundle.
+     * @param bundleDestinationParentPath Absolute path of the parent folder in the application where the bundle will be placed.
      */
-    protected abstract postInject(): Promise<void>;
+    constructor(
+        application: ApplicationMetadata, // the target application
+        bundle: InstrumentationBundle, // The generated instrumentation bundle.
+        bundleDestinationParentPath: string = "", // The destination folder path in the application where the bundle will be placed.
+    ) {
+        super(application, bundle, bundleDestinationParentPath);
+    }
 }

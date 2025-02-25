@@ -1,13 +1,13 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { ApplicationMetadata } from "../../../core/application/application-metadata";
-import { InstrumentationBundle, InstrumentationBundleInjector } from "../../../core/instrumentation/instrumentation-core";
+import { FrontendInstrumentationBundleInjector, InstrumentationBundle } from "../../../core/instrumentation/instrumentation-core";
 
 /**
  * Injector for Angular applications that handles the injection of instrumentation bundles.
  * This class extends the generic InstrumentationBundleInjector and provides Angular-specific logic.
  */
-export class AngularInstrumentationBundleInjector extends InstrumentationBundleInjector {
+export class AngularInstrumentationBundleInjector extends FrontendInstrumentationBundleInjector {
 
     /**
      * Initializes a new instance of the AngularInstrumentationBundleInjector.

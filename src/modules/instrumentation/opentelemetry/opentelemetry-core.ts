@@ -88,17 +88,6 @@ export class OpenTelemetryEventRegistry {
 }
 
 /**
- * Configuration class for user interaction events in OpenTelemetry.
- * Defines whether event tracing is enabled and which specific events are tracked.
- */
-export class OpenTelemetryUserInteractionEventsConfig {
-    constructor(
-        public enabled: boolean,  // Indicates if event tracing is enabled
-        public events: UserInteractionEvent[]  // List of events to trace
-    ) { }
-}
-
-/**
  * Abstract base class for OpenTelemetry instrumentation strategies.
  * Defines a common structure for instrumentation configurations.
  */

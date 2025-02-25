@@ -1,13 +1,13 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { ApplicationMetadata } from "../../../core/application/application-metadata";
-import { InstrumentationBundle, InstrumentationBundleInjector } from "../../../core/instrumentation/instrumentation-core";
+import { FrontendInstrumentationBundleInjector, InstrumentationBundle } from "../../../core/instrumentation/instrumentation-core";
 
 /**
  * Injector for React applications that handles the injection of instrumentation bundles.
  * This class extends the generic InstrumentationBundleInjector and provides React-specific logic.
  */
-export class ReactInstrumentationBundleInjector extends InstrumentationBundleInjector {
+export class ReactInstrumentationBundleInjector extends FrontendInstrumentationBundleInjector {
 
     /**
      * Initializes a new instance of the ReactInstrumentationBundleInjector.

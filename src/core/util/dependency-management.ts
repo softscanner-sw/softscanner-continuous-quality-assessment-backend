@@ -6,16 +6,16 @@ import * as path from "path";
  * Class responsible for managing project dependencies (e.g., npm packages).
  * It provides utilities for installing, checking, and verifying the presence of npm dependencies.
  */
-export class DependencyManager {
+export class NPMDependencyManager {
     /**
      * Installs multiple npm packages for the current project.
      * This method iterates over the provided package names and installs each one.
      * @param packageNames An array of npm package names to be installed.
      */
     static installNPMDependencies(packageNames: string[]): void {
-        console.log('Installing dependencies...');
+        console.log('NPM Dependency Manager: Installing dependencies...');
         packageNames.forEach(packageName => this.installNPMDependency(packageName));
-        console.log('Finished installing dependencies.');
+        console.log('NPM Dependency Manager: Finished installing dependencies.');
     }
 
     /**
@@ -24,13 +24,13 @@ export class DependencyManager {
      * @param packageName The name of the npm package to install.
      */
     static installNPMDependency(packageName: string): void {
-        console.log('Installing dependency...');
+        console.log('NPM Dependency Manager: Installing dependency...');
         const command = `npm install ${packageName} --save`;
         try {
             execSync(command, { stdio: 'inherit' });
-            console.log('Dependency installed successfully.');
+            console.log('NPM Dependency Manager: Dependency installed successfully.');
         } catch (error) {
-            console.error('Failed to install dependency:', error);
+            console.error('NPM Dependency Manager: Failed to install dependency:', error);
         }
     }
 
@@ -55,7 +55,7 @@ export class DependencyManager {
             const allDependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
             return Object.hasOwnProperty.call(allDependencies, packageName);
         } catch (error) {
-            console.error(`Error checking if dependency "${packageName}" is installed:`, error);
+            console.error(`NPM Dependency Manager: Error checking if dependency "${packageName}" is installed:`, error);
             return false;
         }
     }
@@ -68,9 +68,9 @@ export class DependencyManager {
      */
     static areDependenciesInstalled(packageNames: string[]): boolean {
         let allInstalled = false;
-        console.log('Checking dependencies...');
+        console.log('NPM Dependency Manager: Checking dependencies...');
         allInstalled = packageNames.every(packageName => this.isDependencyInstalled(packageName));
-        console.log('Finished checking dependencies...');
+        console.log('NPM Dependency Manager: Finished checking dependencies...');
 
         return allInstalled;
     }
