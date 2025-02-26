@@ -83,7 +83,7 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
 
     /**
      * Generates the necessary import statements based on the configuration.
-     * This includes imports for console, OTLP, and WebSocket exporters as well as session and metadata processing.
+     * This includes imports for console, OTLP, and WebSocket exporters as well as page data and app metadata processing.
      * @returns {string} - A string containing the import statements
      */
     public generateImportations(): string {
@@ -109,10 +109,10 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
             `.trim();
         }
 
-        // Importation for session data exportation (if provided in the configuration)
-        if (automaticTracingOptions.sessionData) {
+        // Importation for page data exportation (if provided in the configuration)
+        if (automaticTracingOptions.pageData) {
             importations += `
-            ${InstrumentationGenerator.generateImportFromStatement('SessionIdSpanProcessor', '../utils/sessionUtils')}
+            ${InstrumentationGenerator.generateImportFromStatement('PageDataSpanProcessor', '../utils/pageUtils')}
             `.trim();
         }
 
@@ -241,7 +241,7 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
 
     /**
      * Generates code for adding span processors to the tracer provider.
-     * This includes session ID and application metadata processors if enabled.
+     * This includes page data and application metadata processors if enabled.
      * @returns {string} - A string containing the span processor registration code
      */
     private generateAddSpanProcessors(): string {
@@ -265,9 +265,9 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
                     })`.trim();
             }
 
-            // Check for session span processing
-            if (automaticTracingOptions.sessionData) {
-                spanProcessor = `new SessionIdSpanProcessor(${spanProcessor})`.trim();
+            // Check for page data span processing
+            if (automaticTracingOptions.pageData) {
+                spanProcessor = `new PageDataSpanProcessor(${spanProcessor})`.trim();
             }
 
             content += `

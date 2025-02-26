@@ -1,4 +1,5 @@
-import { NUUInterpreter, NUUMetric, UIFInterpreter, UIFMetric } from "../../modules/metrics/interaction-capability/user-engagement/user-engagement-metrics";
+import { UIFInterpreter, UIFMetric } from "../../modules/metrics/interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
+import { NCPVInterpreter, NCPVMetric, NoVInterpreter, NoVMetric, NUUInterpreter, NUUMetric } from "../../modules/metrics/interaction-capability/user-engagement/popularity/user-engagement-popularity-metrics";
 import { ARTInterpreter, ARTMetric, TPUTInterpreter, TPUTMetric } from "../../modules/metrics/performance-efficiency/time-behavior/time-behavior-metrics";
 import { ApplicationMetadata } from "../application/application-metadata";
 import { Goal } from "../goals/goals";
@@ -75,14 +76,32 @@ export class AssessmentEngine {
    * @returns An instance of the corresponding metric interpreter, or null if not found.
    */
     private getMetricInterpreter(metric: Metric, selectedGoals: Goal[]): MetricInterpreter | null {
-        switch (metric.acronym) {
-            case "NUU":
-                return new NUUInterpreter(metric as NUUMetric, selectedGoals);
-            case "UIF":
+        switch (metric.acronym.toLowerCase()) {
+            /* USER ENGAGEMENT Metrics */
+            /* ======================= */
+            /* Activity Metrics */
+            case "uif":
                 return new UIFInterpreter(metric as UIFMetric, selectedGoals);
-            case "ART":
+            
+            // @TODO add cases for Click Depth Average (CDA) and Dwell Time Average (DTA)
+
+            /* Loyalty Metrics */
+            // @TODO add cases for Return Rate (RR) and Active Days (AD)
+
+            /* Popularity Metrics */
+            case "nuu":
+                return new NUUInterpreter(metric as NUUMetric, selectedGoals);
+            case "nov":
+                return new NoVInterpreter(metric as NoVMetric, selectedGoals);
+            case "ncpv":
+                return new NCPVInterpreter(metric as NCPVMetric, selectedGoals);
+
+            /* PERFORMANCE EFFICIENCY Metrics */
+            /* ============================== */
+            /* Time Behavior Metrics */
+            case "art":
                 return new ARTInterpreter(metric as ARTMetric, selectedGoals);
-            case "TPUT":
+            case "tput":
                 return new TPUTInterpreter(metric as TPUTMetric, selectedGoals);
             default:
                 console.warn(`Assessment Engine: No interpreter available for metric: ${metric.name}`);

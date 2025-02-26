@@ -65,8 +65,7 @@ export class ISOIEC25010 extends QualityModel {
         this.addSubGoal(userErrorProtection, interactionCapability);
 
         /* User Engagement */
-        const userEngagement = new LeafGoal('User Engagement', 'The degree to which the software presents functions and information in an inviting and motivating manner encouraging continued interaction', undefined, 1);
-        this.addSubGoal(userEngagement, interactionCapability);
+        this.buildUserEngagementCharacteristics(interactionCapability);
 
         /* Inclusivity */
         const inclusivity = new LeafGoal('Inclusivity', 'The degree to which the software can be utilized by people of various backgrounds', undefined, 1);
@@ -79,6 +78,25 @@ export class ISOIEC25010 extends QualityModel {
         /* Self-Descriptiveness */
         const selfDescriptiveness = new LeafGoal('Self-Descriptiveness', 'The degree to which a software can present appropriate information, where needed by the user, to make its capabilities and use immediately obvious to the user without excessive interactions with a product or other resources', undefined, 1);
         this.addSubGoal(selfDescriptiveness, interactionCapability);
+    }
+
+    private buildUserEngagementCharacteristics(interactionCapability: CompositeGoal) {
+        const userEngagement = new CompositeGoal('User Engagement', 'The degree to which the software presents functions and information in an inviting and motivating manner encouraging continued interaction', undefined, 1);
+
+        /* Popularity */
+        const popularity = new LeafGoal('Popularity', 'The degreee to which the software is popular among its users', undefined, 1);
+        this.addSubGoal(popularity, userEngagement);
+
+        /* Activity */
+        const activity = new LeafGoal('Activity', 'The degree to which users are actively engaged with the software', undefined, 1);
+        this.addSubGoal(activity, userEngagement);
+
+        /* Loyalty */
+        const loyalty = new LeafGoal('Loyalty', 'The degree to which users are loyal to the software', undefined, 1);
+        this.addSubGoal(loyalty, userEngagement);
+
+        /* Add User Engagement as a sub-goal to Interaction Capability */
+        this.addSubGoal(userEngagement, interactionCapability);
     }
 
     /**

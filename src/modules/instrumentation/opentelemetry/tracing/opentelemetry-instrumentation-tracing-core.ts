@@ -14,7 +14,7 @@ export class OpenTelemetryUserInteractionEventsConfig {
 
 export abstract class OpenTelemetryAutomaticTracingOptions {
     public appMetadata: boolean;
-    public sessionData: boolean;
+    public pageData: boolean;
 
     constructor({
         /**
@@ -24,13 +24,13 @@ export abstract class OpenTelemetryAutomaticTracingOptions {
         appMetadata = true,
 
         /**
-         * Whether to capture session data (e.g., session IDs).
+         * Whether to capture page data (e.g., session, visit IDs).
          * Default: false
          */
-        sessionData = true,
+        pageData = true,
     }) {
         this.appMetadata = appMetadata;
-        this.sessionData = sessionData;
+        this.pageData = pageData;
     }
 
     abstract mapOptionsToAutoInstrumentationModules(): Map<string, string>;
@@ -70,10 +70,10 @@ export class OpenTelemetryWebAutomaticTracingOptions extends OpenTelemetryAutoma
         appMetadata = true,
 
         /**
-         * Whether to capture session data (e.g., session IDs).
+         * Whether to capture page data (e.g., session, visit IDs).
          * Default: false
          */
-        sessionData = true,
+        pageData = true,
 
         /**
          * Configuration for user interaction events to be traced (e.g., clicks, form submissions).
@@ -101,7 +101,7 @@ export class OpenTelemetryWebAutomaticTracingOptions extends OpenTelemetryAutoma
          */
         ajaxRequests = false,
     }) {
-        super({ appMetadata, sessionData });
+        super({ appMetadata, pageData });
         this.userInteractions = userInteractions;
         this.documentLoad = documentLoad;
         this.fetchApi = fetchApi;
@@ -168,10 +168,10 @@ export class OpenTelemetryNodeAutomaticTracingOptions extends OpenTelemetryAutom
         appMetadata = true,
 
         /**
-         * Whether to capture session data (e.g., session IDs).
+         * Whether to capture page data (e.g., session, visit IDs).
          * Default: false
          */
-        sessionData = true,
+        pageData = true,
         amqplib = false,
         awsLambda = false,
         awsSdk = false,
@@ -208,7 +208,7 @@ export class OpenTelemetryNodeAutomaticTracingOptions extends OpenTelemetryAutom
         undici = false,
         winston = false,
     }) {
-        super({ appMetadata, sessionData });
+        super({ appMetadata, pageData });
         this.amqplib = amqplib;
         this.awsLambda = awsLambda;
         this.awsSdk = awsSdk;

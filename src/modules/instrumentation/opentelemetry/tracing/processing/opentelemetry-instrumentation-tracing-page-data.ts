@@ -3,11 +3,11 @@ import { Instrumentation, InstrumentationGenerator } from "../../../../../core/i
 import { OpenTelemetryInstrumentationConfig, OpenTelemetryInstrumentationStrategy } from "../../opentelemetry-core";
 
 /**
- * A class representing a concrete strategy for generating instrumentation files to trace session data
+ * A class representing a concrete strategy for generating instrumentation files to trace page data
  */
-export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemetryInstrumentationStrategy {
+export class OpenTelemetryPageDataInstrumentationStrategy extends OpenTelemetryInstrumentationStrategy {
     /**
-     * Constructor for the session data instrumentation strategy.
+     * Constructor for the page data instrumentation strategy.
      * @param config OpenTelemetry instrumentation configuration
      * @param application Metadata of the application being instrumented
      */
@@ -16,20 +16,20 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
     }
 
     /**
-     * Generates the instrumentation files required for session data tracking.
+     * Generates the instrumentation files required for page data tracking.
      * @returns Array of instrumentation files
      */
     public generateInstrumentationFiles(): Instrumentation[] {
         let instrumentations: Instrumentation[] = [];
         instrumentations.push(this.generateTracingInstrumentationFile(
-            `sessionUtils.ts`
+            `pageUtils.ts`
         ));
 
         return instrumentations;
     }
 
     /**
-     * Generates a tracing instrumentation file with session management utilities.
+     * Generates a tracing instrumentation file with page management utilities.
      * @param fileName Name of the generated file
      * @returns An instrumentation object containing file details and content
      */
@@ -63,7 +63,7 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
     }
 
     /**
-     * Generates import statements for the session management utilities.
+     * Generates import statements for the page management utilities.
      * @returns Import statements as a string
      */
     public generateImportations(): string {
@@ -75,7 +75,7 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
     }
 
     /**
-     * Generates utility functions for session ID generation.
+     * Generates utility functions for session and visit ID generation.
      * @returns Functions as a string
      */
     private generateFunctions(): string {
@@ -83,6 +83,39 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
         /* Generates session IDs using UUIDV4 */
         function generateSessionId(){
             return uuidv4();
+        }
+
+        /* Generates visit IDs using localStorage if available, otherwise uses a fallback global store */
+        function getVisitId(): string {
+            // Check if we're in a browser (i.e., window and localStorage are available)
+            if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+                const thisGlobal = (globalThis as any)
+                // Fallback for backend: use a global variable to persist the visit id across calls
+                if (!thisGlobal._visitId || (Date.now() - thisGlobal._visitTimestamp) > VISIT_TIMEOUT_MS) {
+                    thisGlobal._visitId = uuidv4();
+                    thisGlobal._visitTimestamp = Date.now();
+                }
+                return thisGlobal._visitId;
+            }
+
+            // Browser environment: use localStorage as usual
+            const storedVisitId = localStorage.getItem(VISIT_KEY);
+            const storedTimestamp = localStorage.getItem(VISIT_TIMESTAMP_KEY);
+            const now = Date.now();
+
+            if (storedVisitId && storedTimestamp) {
+                const timestamp = parseInt(storedTimestamp, 10);
+                // If the visit is still valid (within timeout), return it.
+                if (now - timestamp < VISIT_TIMEOUT_MS) {
+                    return storedVisitId;
+                }
+            }
+
+            // Otherwise, generate a new visit id and update the timestamp.
+            const newVisitId = uuidv4();
+            localStorage.setItem(VISIT_KEY, newVisitId);
+            localStorage.setItem(VISIT_TIMESTAMP_KEY, now.toString());
+            return newVisitId;
         }
         `.trim();
     }
@@ -101,7 +134,7 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
     }
 
     /**
-     * Generates constants and session gateway functions for session management.
+     * Generates constants and session gateway functions for page management.
      * @returns Constants and gateway functions as a string
      */
     public generateConstants(): string {
@@ -112,7 +145,7 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
             sessionId: generateSessionId()
         };
 
-        /* A Session Gateway Function */
+        /* A session gateway function */
         const SessionGateway = () => ({
             getSession(): ISession {
                 if (typeof window === 'undefined')
@@ -131,26 +164,33 @@ export class OpenTelemetrySessionDataInstrumentationStrategy extends OpenTelemet
                 sessionStorage.setItem(sessionKey, JSON.stringify({...session, [key]: value}));
             }
         });
+
+        /* Page visit constants */
+        const VISIT_KEY = "app.visit.id";
+        const VISIT_TIMESTAMP_KEY = "app.visit.timestamp";
+        const VISIT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
         `.trim();
     }
 
     /**
-     * Generates the session processor class that injects session information into spans.
+     * Generates the page data processor class that injects page information (session and visit IDs) into spans.
      * @returns Class definition as a string
      */
     public generateClasses(): string {
         return `
-        /* Custom Span Processor for Session information */
-        export class SessionIdSpanProcessor implements SpanProcessor {
+        /* Custom Span Processor for Page Data information (e.g., sessions, visits, etc.) */
+        export class PageDataSpanProcessor implements SpanProcessor {
             private _nextProcessor: SpanProcessor;
-            private _dataName = "app.session.id";
+            private sessionData = "app.session.id";
+            private visitData = "app.visit.id";
 
             constructor(nextProcessor: SpanProcessor){
                 this._nextProcessor = nextProcessor;
             }
             
             onStart(span: Span, parentContext: Context): void {
-                span.setAttribute(this._dataName, SessionGateway().getSession().sessionId);
+                span.setAttribute(this.sessionData, SessionGateway().getSession().sessionId);
+                span.setAttribute(this.visitData, getVisitId());
                 this._nextProcessor.onStart(span, parentContext);
             }
 

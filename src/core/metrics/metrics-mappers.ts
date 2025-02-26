@@ -1,4 +1,6 @@
-import { UserEngagementMapper } from "../../modules/metrics/interaction-capability/user-engagement/user-engagement-metrics";
+import { ActivityMapper } from "../../modules/metrics/interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
+import { LoyaltyMapper } from "../../modules/metrics/interaction-capability/user-engagement/loyalty/user-engagement-loyalty-metrics";
+import { PopularityMapper } from "../../modules/metrics/interaction-capability/user-engagement/popularity/user-engagement-popularity-metrics";
 import { TimeBehaviorMapper } from "../../modules/metrics/performance-efficiency/time-behavior/time-behavior-metrics";
 import { CompositeGoal, GoalVisitor, LeafGoal } from "../goals/goals";
 import { GoalMapper, Metric } from "./metrics-core";
@@ -25,9 +27,17 @@ export class MetricsMapper implements GoalVisitor {
      */
     visitLeafGoal(goal: LeafGoal): Metric[] | void {
         switch (goal.name) {
-            case "User Engagement":
-                this._mapper = new UserEngagementMapper();
+            /* USER ENGAGEMENT LEAF Goals */
+            case "Activity":
+                this._mapper = new ActivityMapper();
                 break;
+            case "Loyalty":
+                this._mapper = new LoyaltyMapper();
+                break;
+            case "Popularity":
+                this._mapper = new PopularityMapper();
+                break;
+            /* PERFORMANCE EFFICIENCY Leaf Goals */
             case "Time Behavior":
                 this._mapper = new TimeBehaviorMapper();
                 break;
