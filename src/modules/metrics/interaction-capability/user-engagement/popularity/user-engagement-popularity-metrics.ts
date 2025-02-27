@@ -14,8 +14,13 @@ export class NUUMetric extends Metric {
     constructor(
         private _nbSessions: number = 1,
     ) {
-        // The metric requires tracing telemetry
-        super("Number of Unique Users", "Number of distinct users using an application", "users", "NUU", [TelemetryType.TRACING]);
+        super(
+            "Number of Unique Users",
+            "Number of distinct users using an application",
+            "users",
+            "NUU",
+            [TelemetryType.TRACING] // The metric requires tracing telemetry
+        );
     }
 
     /**
@@ -38,8 +43,8 @@ export class NUUMetric extends Metric {
 
     /**
      * Computes the value for the **Number of Unique Users (NUU)** metric.
-     * @param telemetryData An array of telemetry data to analyze.
-     * @returns The computed value representing the number of unique sessions.
+     * @param telemetryData An array of telemetry data objects to analyze.
+     * @returns The computed value representing the number of unique users (sessions).
      */
     computeValue(telemetryData: any[]) {
         // Compute distinct number of sessions
@@ -61,11 +66,12 @@ export class NUUMetric extends Metric {
     }
 
     /**
-     * Resets the value and session count to the default state.
+     * Resets the session count parameter and the metric value to their default states.
      */
     resetValue(): void {
         super.resetValue();
         this._nbSessions = 1;
+        this._value = 0;
     }
 
 }
@@ -105,12 +111,21 @@ export class NUUInterpreter extends MetricInterpreter {
 export class NoVMetric extends Metric {
     _value: number = 0;
     constructor() {
-        // Assume that each telemetry record has a visit id in attributes["visit.id"]
-        super("Number of Visits", "Total number of visits to the application", "visits", "NoV", [TelemetryType.TRACING]);
+        super(
+            "Number of Visits",
+            "Total number of visits to the application",
+            "visits",
+            "NoV",
+            [TelemetryType.TRACING] // The metric requires tracing telemetry
+        );
     }
 
+    /**
+     * Counts the number of visits by counting unique visit ids.
+     * @param telemetryData An array of telemetry data objects to analyze.
+     * @returns The computed value representing number of unique app visits
+     */
     computeValue(telemetryData: any[]): number {
-        // Count the number of visits by counting unique visit ids.
         const visits = new Set<string>();
         telemetryData
             .map(data => data.attributes["app.visit.id"])
@@ -119,6 +134,9 @@ export class NoVMetric extends Metric {
         return this._value;
     }
 
+    /**
+     * Resets the metric value to its initial state.
+     */
     resetValue(): void {
         super.resetValue();
         this._value = 0;
@@ -163,13 +181,12 @@ export class NCPVMetric extends Metric {
     _value: number = 0;
 
     constructor() {
-        // The metric requires tracing telemetry.
         super(
             "Number of Clicks for Page Views",
             "Total number of navigation clicks (page views) in the application",
             "clicks",
             "NCPV",
-            [TelemetryType.TRACING]
+            [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
     }
 
@@ -179,7 +196,7 @@ export class NCPVMetric extends Metric {
      *   - Its attribute "event_type" equals "click"
      *   - Its trace name includes the substring "navigation:" (case-insensitive)
      *
-     * @param telemetryData An array of telemetry data objects.
+     * @param telemetryData An array of telemetry data objects to analyze.
      * @returns The computed value representing the number of navigation clicks.
      */
     computeValue(telemetryData: any[]): number {

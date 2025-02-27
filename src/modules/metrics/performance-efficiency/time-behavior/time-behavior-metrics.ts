@@ -2,6 +2,7 @@ import { Goal } from "../../../../core/goals/goals";
 import { GoalMapper, Metric } from "../../../../core/metrics/metrics-core";
 import { MetricInterpreter } from "../../../../core/metrics/metrics-interpreters";
 import { TelemetryType } from "../../../../core/telemetry/telemetry";
+import { Utils } from "../../../../core/util/util-core";
 
 /**
  * ARTMetric computes the Average Response Time (ART) in milliseconds
@@ -123,27 +124,16 @@ export class TPUTMetric extends Metric {
             return this._value;
         }
 
-        // Helper to convert a time representation (number or [seconds, nanoseconds]) into milliseconds.
-        const toMs = (time: any): number => {
-            if (typeof time === 'number') {
-                return time;
-            } else if (Array.isArray(time)) {
-                // Convert [seconds, nanoseconds] to milliseconds
-                return time[0] * 1000 + time[1] / 1e6;
-            }
-            return 0;
-        };
-
         // Determine the minimum start time and maximum end time among all HTTP spans.
         let minStart = Infinity;
         let maxEnd = -Infinity;
         httpTraces.forEach(trace => {
-            const startMs = toMs(trace.startTime);
+            const startMs = Utils.toMs(trace.startTime);
 
             // Prefer using endTime; if missing and duration exists, compute endTime from startTime.
             let endMs = trace.endTime != null
-                ? toMs(trace.endTime)
-                : (trace.duration != null ? startMs + toMs(trace.duration) : startMs);
+                ? Utils.toMs(trace.endTime)
+                : (trace.duration != null ? startMs + Utils.toMs(trace.duration) : startMs);
             if (startMs < minStart) {
                 minStart = startMs;
             }
@@ -162,72 +152,12 @@ export class TPUTMetric extends Metric {
         // Use the maximum end time as the "current" time, and consider only spans that started
         // within the observation window [maxEnd - observationWindowMs, maxEnd].
         const windowStart = maxEnd - observationWindowMs;
-        const spansInWindow = httpTraces.filter(trace => toMs(trace.startTime) >= windowStart);
+        const spansInWindow = httpTraces.filter(trace => Utils.toMs(trace.startTime) >= windowStart);
 
         // Compute throughput as number of spans divided by the observation window (in seconds).
         this._value = spansInWindow.length / (observationWindowMs / 1000);
         return this._value;
     }
-
-    // computeValue(telemetryData: any[]): number {
-    //     // Filter spans that are actual HTTP spans based on the presence of "http.method"
-    //     const httpTraces = telemetryData.filter(data =>
-    //         data.attributes && data.attributes["http.method"]
-    //     );
-
-    //     if (httpTraces.length === 0) {
-    //         this._value = 0;
-    //         return this._value;
-    //     }
-
-    //     // Count the number of HTTP spans.
-    //     // Determine the observation window using the minimum start time and maximum end time.
-    //     // (@TODO needs updating based on the presence/absence of startTime, endTime and duration and their types)
-    //     let count = httpTraces.length;
-    //     let minStart = Infinity;
-    //     let maxEnd = -Infinity;
-    //     httpTraces.forEach(trace => {
-    //         let startMs: number;
-    //         let endMs: number;
-
-    //         if (trace.startTime != null) {
-    //             startMs = typeof trace.startTime === 'number'
-    //                 ? trace.startTime
-    //                 : Array.isArray(trace.startTime)
-    //                     ? trace.startTime[0] * 1000 + trace.startTime[1] / 1e6
-    //                     : 0;
-    //         } else startMs = 0;
-
-    //         if (trace.endTime != null) {
-    //             endMs = typeof trace.endTime === 'number'
-    //                 ? trace.endTime
-    //                 : Array.isArray(trace.endTime)
-    //                     ? trace.endTime[0] * 1000 + trace.endTime[1] / 1e6
-    //                     : startMs; // fallback
-    //         } else if (trace.duration != null) {
-    //             // If endTime isn’t provided, but duration is, then compute endTime from startTime.
-    //             let durationMs = typeof trace.duration === 'number'
-    //                 ? trace.duration
-    //                 : Array.isArray(trace.duration)
-    //                     ? trace.duration[0] * 1000 + trace.duration[1] / 1e6
-    //                     : 0;
-    //             endMs = startMs + durationMs;
-    //         } else endMs = startMs;
-
-    //         minStart = Math.min(minStart, startMs);
-    //         maxEnd = Math.max(maxEnd, endMs);
-    //     });
-
-    //     const timeWindowMs = maxEnd - minStart;
-    //     if (timeWindowMs <= 0) {
-    //         this._value = 0;
-    //         return this._value;
-    //     }
-
-    //     // Compute throughput as the number of spans divided by the observation window (in seconds).
-    //     this._value = count / (timeWindowMs / 1000);
-    //     return this._value;
-    // }
 
     resetValue(): void {
         super.resetValue();
@@ -262,6 +192,8 @@ export class TimeBehaviorMapper implements GoalMapper {
             throw new Error(`Time Behavior Mapper: Incorrect mapper for goal ${goal.name}`);
         }
 
+        // Set overall weight for "Time Behavior"
+        goal.weight = 1/3;
         goal.metrics.push(
             new ARTMetric(),
             new TPUTMetric(),

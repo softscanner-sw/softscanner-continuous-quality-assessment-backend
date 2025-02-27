@@ -1,4 +1,4 @@
-import { UIFInterpreter, UIFMetric } from "../../modules/metrics/interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
+import { CDAInterpreter, CDAMetric, DTAInterpreter, DTAMetric, UIFInterpreter, UIFMetric } from "../../modules/metrics/interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
 import { NCPVInterpreter, NCPVMetric, NoVInterpreter, NoVMetric, NUUInterpreter, NUUMetric } from "../../modules/metrics/interaction-capability/user-engagement/popularity/user-engagement-popularity-metrics";
 import { ARTInterpreter, ARTMetric, TPUTInterpreter, TPUTMetric } from "../../modules/metrics/performance-efficiency/time-behavior/time-behavior-metrics";
 import { ApplicationMetadata } from "../application/application-metadata";
@@ -82,8 +82,10 @@ export class AssessmentEngine {
             /* Activity Metrics */
             case "uif":
                 return new UIFInterpreter(metric as UIFMetric, selectedGoals);
-            
-            // @TODO add cases for Click Depth Average (CDA) and Dwell Time Average (DTA)
+            case "cda":
+                return new CDAInterpreter(metric as CDAMetric, selectedGoals);
+            case "dta":
+                return new DTAInterpreter(metric as DTAMetric, selectedGoals);
 
             /* Loyalty Metrics */
             // @TODO add cases for Return Rate (RR) and Active Days (AD)

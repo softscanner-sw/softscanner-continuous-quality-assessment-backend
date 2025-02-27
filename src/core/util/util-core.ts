@@ -29,4 +29,19 @@ export class Utils {
     public static convertEnumValueToLowercaseWithNoSeparator(enumValue: string) {
         return enumValue.toLowerCase().replace(/_/g, '');
     }
+
+    /**
+     * Helper to convert a time representation (number or [seconds, nanoseconds]) into milliseconds.
+     * @param time number or [seconds, nanoseconds]
+     * @returns time in milliseconds
+     */
+    public static toMs(time: any): number {
+        if (typeof time === 'number') {
+            return time;
+        } else if (Array.isArray(time)) {
+            // Convert [seconds, nanoseconds] to milliseconds
+            return time[0] * 1000 + time[1] / 1e6;
+        }
+        return 0;
+    }
 }
