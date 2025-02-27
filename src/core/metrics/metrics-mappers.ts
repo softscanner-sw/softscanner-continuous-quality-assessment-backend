@@ -27,7 +27,7 @@ export class MetricsMapper implements GoalVisitor {
      */
     visitLeafGoal(goal: LeafGoal): Metric[] | void {
         switch (goal.name) {
-            /* USER ENGAGEMENT LEAF Goals */
+            /* USER ENGAGEMENT Leaf Goals */
             case "Activity":
                 this._mapper = new ActivityMapper();
                 break;

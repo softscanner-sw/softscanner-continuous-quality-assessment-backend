@@ -1,4 +1,5 @@
-import { CDAInterpreter, CDAMetric, DTAInterpreter, DTAMetric, UIFInterpreter, UIFMetric } from "../../modules/metrics/interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
+import { CDPVAInterpreter, CDPVAMetric, DTAInterpreter, DTAMetric, UIFInterpreter, UIFMetric } from "../../modules/metrics/interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
+import { ADInterpreter, ADMetric, DTLInterpreter, DTLMetric, RRInterpreter, RRMetric } from "../../modules/metrics/interaction-capability/user-engagement/loyalty/user-engagement-loyalty-metrics";
 import { NCPVInterpreter, NCPVMetric, NoVInterpreter, NoVMetric, NUUInterpreter, NUUMetric } from "../../modules/metrics/interaction-capability/user-engagement/popularity/user-engagement-popularity-metrics";
 import { ARTInterpreter, ARTMetric, TPUTInterpreter, TPUTMetric } from "../../modules/metrics/performance-efficiency/time-behavior/time-behavior-metrics";
 import { ApplicationMetadata } from "../application/application-metadata";
@@ -82,14 +83,17 @@ export class AssessmentEngine {
             /* Activity Metrics */
             case "uif":
                 return new UIFInterpreter(metric as UIFMetric, selectedGoals);
-            case "cda":
-                return new CDAInterpreter(metric as CDAMetric, selectedGoals);
+            case "cdpva":
+                return new CDPVAInterpreter(metric as CDPVAMetric, selectedGoals);
             case "dta":
                 return new DTAInterpreter(metric as DTAMetric, selectedGoals);
-
             /* Loyalty Metrics */
-            // @TODO add cases for Return Rate (RR) and Active Days (AD)
-
+            case "ad":
+                return new ADInterpreter(metric as ADMetric, selectedGoals);
+            case "rr":
+                return new RRInterpreter(metric as RRMetric, selectedGoals);
+            case "dtl":
+                return new DTLInterpreter(metric as DTLMetric, selectedGoals);
             /* Popularity Metrics */
             case "nuu":
                 return new NUUInterpreter(metric as NUUMetric, selectedGoals);

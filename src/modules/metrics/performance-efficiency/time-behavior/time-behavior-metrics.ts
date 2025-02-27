@@ -3,26 +3,35 @@ import { GoalMapper, Metric } from "../../../../core/metrics/metrics-core";
 import { MetricInterpreter } from "../../../../core/metrics/metrics-interpreters";
 import { TelemetryType } from "../../../../core/telemetry/telemetry";
 import { Utils } from "../../../../core/util/util-core";
+import { OpenTelemetryNodeTracingInstrumentationAdapter } from "../../../instrumentation/opentelemetry/tracing/opentelemetry-instrumentation-tracing-adapters";
 
 /**
- * ARTMetric computes the Average Response Time (ART) in milliseconds
- * based on HTTP spans collected via backend Node.js instrumentation.
+ * Represents the **Average Response Time (ART)** metric.
+ * This metric counts **the average response time in milliseconds based on HTTP spans** 
+ * to measure `Performance Efficiency -> Time Behavior`.
+ * 
+ * @requires {@link OpenTelemetryNodeTracingInstrumentationAdapter}
  */
 export class ARTMetric extends Metric {
     _value: number = 0;
 
     constructor() {
-        // The metric requires tracing telemetry
-        super("Average Response Time", "Average time (in ms) to process HTTP requests", "ms", "ART", [TelemetryType.TRACING]);
+        super(
+            "Average Response Time",
+            "Average time (in ms) to process HTTP requests",
+            "ms",
+            "ART",
+            [TelemetryType.TRACING] // The metric requires tracing telemetry
+        );
     }
 
     /**
-     * Computes the average response time.
-     * It filters telemetry data to include only HTTP spans (identified by a tag with key "http.method")
-     * and uses the "duration" field for each span.
-     *
-     * @param telemetryData An array of span objects.
-     * @returns The computed average response time.
+     * Computes the value for the **Average Response Time (ART)** metric.
+     * It filters telemetry data to include only **HTTP spans**
+     * (_identified by a tag with key `http.method`_)
+     * and uses the `duration` field for each span in its computation.
+     * @param telemetryData An array of telemetry data objects to analyze.
+     * @returns The computed value representing the average response time.
      */
     computeValue(telemetryData: any[]): number {
         // Filter spans that are actual HTTP spans based on the presence of "http.method"
@@ -35,37 +44,30 @@ export class ARTMetric extends Metric {
             return this._value;
         }
 
-        // Helper to convert a time representation (number or [seconds, nanoseconds]) into milliseconds.
-        const toMs = (time: any): number => {
-            if (typeof time === 'number') {
-                return time;
-            } else if (Array.isArray(time)) {
-                // Convert [seconds, nanoseconds] to milliseconds
-                return time[0] * 1000 + time[1] / 1e6;
-            }
-            return 0;
-        };
-
-        // Sum the durations of each HTTP span.
+        // Compute the total response time by summing the durations of each HTTP span.
         let totalResponseTime = 0;
         httpTraces.forEach(trace => {
             let durationMs = 0;
             // Prefer using duration; if missing startTime and endTime exists, compute duration from them
             if (trace.duration != null) {
-                durationMs = toMs(trace.duration);
+                durationMs = Utils.toMs(trace.duration);
             } else if (trace.startTime && trace.endTime) {
                 // If duration isn’t directly provided, compute it from startTime and endTime.
-                durationMs = toMs(trace.endTime) - toMs(trace.startTime);
+                durationMs = Utils.toMs(trace.endTime) - Utils.toMs(trace.startTime);
             }
 
             totalResponseTime += durationMs;
         });
 
-        // Compute average response time.
+        // Compute average response time by dividing total response time
+        // by number of HTTP spans
         this._value = totalResponseTime / httpTraces.length;
         return this._value;
     }
 
+    /**
+     * Resets the metric value to its initial state.
+     */
     resetValue(): void {
         super.resetValue();
         this._value = 0;
@@ -73,44 +75,67 @@ export class ARTMetric extends Metric {
 }
 
 /**
- * ARTInterpreter normalizes the computed Average Response Time value
- * and assigns a weight based on whether the "Time Behavior" goal is selected.
+ * Provides interpretation logic for the **Average Response Time (ART)** metric.
+ * This class assigns a weight to the metric based on the selected goals.
+ * A default weight of `0.3` is assigned in case no goals are selected.
+ * A default initial hardcoded maximum of `1000ms (1 second)` is used
+ * as an initial **normalization benchmark** for ART's interpretation.
  */
 export class ARTInterpreter extends MetricInterpreter {
     constructor(metric: ARTMetric, selectedGoals: Goal[]) {
-        // Use an initial benchmark of 1000ms (1 second) as the normalization maximum.
+        // Assume a maximum of 1000ms (1 second)
+        // as an initial benchmark for ART's interpretation
         super(metric, selectedGoals, 1000);
     }
 
     /**
-     * If the "Time Behavior" goal is selected, assign a higher weight.
+     * Assigns a weight to the **Average Response Time (ART)** metric.
+     * @returns A weight dynamically computed based on the selected goals; otherwise, 0.3.
+     * @see {@link ARTMetric}
      */
     assignWeight(): number {
-        return this.selectedGoals.some(goal => goal.name === "Time Behavior") ? 0.5 : 0.3;
+        let weight = 0.3; // default weight
+        // If selected goals includes "Time Behavior"
+        if (this.selectedGoals.some(goal => goal.name === "Time Behavior")) {
+            const timeBehavior = this.selectedGoals.find(goal => goal.name === "Time Behavior");
+            if (timeBehavior)
+                weight = (timeBehavior.weight || 1) / (timeBehavior.metrics.length || 1);
+        }
+        return weight;
     }
 }
 
 /**
- * TPUTMetric computes the throughput (in requests per second) based on
- * HTTP spans collected via backend Node.js instrumentation.
+ * Represents the **Throughput (TPUT)** metric.
+ * This metric computes **the throughput (in requests per second) based on HTTP spans** 
+ * to measure `Performance Efficiency -> Time Behavior`.
+ * 
+ * @requires {@link OpenTelemetryNodeTracingInstrumentationAdapter}
  */
 export class TPUTMetric extends Metric {
     _value: number = 0;
 
     constructor() {
-        // The metric requires tracing telemetry.
-        super("Throughput", "Number of HTTP requests processed per second", "req/s", "TPUT", [TelemetryType.TRACING]);
+        super(
+            "Throughput",
+            "Number of HTTP requests processed per second",
+            "req/s",
+            "TPUT",
+            [TelemetryType.TRACING] // The metric requires tracing telemetry
+        );
     }
 
     /**
-     * Computes the throughput as the number of HTTP spans divided by the
+     * Computes the value for the **Throughput (TPUT)** metric.
+     * It computes it as the number of HTTP spans divided by the
      * time window (in seconds) over which those spans occurred.
-     *
-     * It first filters telemetry data to only include HTTP spans (identified by the presence
-     * of a tag with key "http.method"). Then it computes the observation window using the
-     * minimum start time and maximum end time (both assumed to be numeric and in milliseconds).
-     *
-     * @param telemetryData An array of span objects.
+     * 
+     * It filters telemetry data to include only **HTTP spans**
+     * (_identified by a tag with key `http.method`_).
+     * Then it computes the observation window using the
+     * minimum start time and maximum end time.
+     * 
+     * @param telemetryData An array of telemetry data objects to analyze.
      * @returns The computed throughput value (in req/s).
      */
     computeValue(telemetryData: any[]): number {
@@ -142,7 +167,7 @@ export class TPUTMetric extends Metric {
             }
         });
 
-        // Define a fixed observation window (in milliseconds)
+        // Define a fixed observation window of 10,000ms (10 seconds)
         const FIXED_WINDOW_MS = 10000;
 
         // If the overall batch spans less than the fixed window, use the actual span; otherwise, use the fixed window.
@@ -159,6 +184,9 @@ export class TPUTMetric extends Metric {
         return this._value;
     }
 
+    /**
+     * Resets the metric value to its initial state.
+     */
     resetValue(): void {
         super.resetValue();
         this._value = 0;
@@ -166,34 +194,58 @@ export class TPUTMetric extends Metric {
 }
 
 /**
- * TPUTInterpreter normalizes the computed throughput value
- * and assigns a weight based on whether the "Time Behavior" goal is selected.
+ * Provides interpretation logic for the **Throughput (TPUT)** metric.
+ * This class assigns a weight to the metric based on the selected goals.
+ * A default weight of `0.3` is assigned in case no goals are selected.
+ * A default initial hardcoded maximum of `10 req/s` is used
+ * as an initial **normalization benchmark** for TPUT's interpretation.
  */
 export class TPUTInterpreter extends MetricInterpreter {
     constructor(metric: TPUTMetric, selectedGoals: Goal[]) {
-        // Use an initial benchmark of 10 req/s as the normalization maximum.
+        // Assume a maximum of 10 req/s
+        // as an initial benchmark for TPUT's interpretation
         super(metric, selectedGoals, 10);
     }
 
     /**
-     * If the "Time Behavior" goal is selected, assign a higher weight.
+     * Assigns a weight to the **Throughput (TPUT)** metric.
+     * @returns A weight dynamically computed based on the selected goals; otherwise, 0.3.
+     * @see {@link TPUTMetric}
      */
     assignWeight(): number {
-        return this.selectedGoals.some(goal => goal.name === "Time Behavior") ? 0.4 : 0.2;
+        let weight = 0.3; // default weight
+        // If selected goals includes "Time Behavior"
+        if (this.selectedGoals.some(goal => goal.name === "Time Behavior")) {
+            const timeBehavior = this.selectedGoals.find(goal => goal.name === "Time Behavior");
+            if (timeBehavior)
+                weight = (timeBehavior.weight || 1) / (timeBehavior.metrics.length || 1);
+        }
+        return weight;
     }
 }
 
 /**
- * TimeBehaviorMapper maps a "Time Behavior" goal to the ARTMetric.
+ * This class is responsible for mapping the `Performance Efficiency -> Time Behavior`
+ * goal to its corresponding metrics:
+ * 1. **Average Response Time (ART)**;
+ * 2. **Throughput (TPUT)**.
+ * 
+ * @see classes {@link ARTMetric} and {@link TPUTMetric}
  */
 export class TimeBehaviorMapper implements GoalMapper {
+    /**
+     * Maps the `Performance Efficiency -> Time Behavior` goal to its metrics (ART and TPUT).
+     * @param goal The goal to map.
+     * @throws An error if the goal is not "Time Behavior".
+     * @see classes {@link ARTMetric} and {@link TPUTMetric}
+     */
     map(goal: Goal): void {
         if (goal.name !== "Time Behavior") {
             throw new Error(`Time Behavior Mapper: Incorrect mapper for goal ${goal.name}`);
         }
 
         // Set overall weight for "Time Behavior"
-        goal.weight = 1/3;
+        goal.weight = 1 / 3;
         goal.metrics.push(
             new ARTMetric(),
             new TPUTMetric(),

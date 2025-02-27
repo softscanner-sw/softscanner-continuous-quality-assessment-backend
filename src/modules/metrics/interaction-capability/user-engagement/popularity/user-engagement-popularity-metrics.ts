@@ -2,11 +2,14 @@ import { Goal } from "../../../../../core/goals/goals";
 import { GoalMapper, Metric } from "../../../../../core/metrics/metrics-core";
 import { MetricInterpreter } from "../../../../../core/metrics/metrics-interpreters";
 import { TelemetryType } from "../../../../../core/telemetry/telemetry";
+import { OpenTelemetryWebTracingInstrumentationAdapter } from "../../../../instrumentation/opentelemetry/tracing/opentelemetry-instrumentation-tracing-adapters";
 
 /**
  * Represents the **Number of Unique Users (NUU)** metric.
  * This metric counts **the number of distinct user sessions of an app** 
  * to measure `Interaction Capability -> User Engagement -> Popularity`.
+ * 
+ * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
  */
 export class NUUMetric extends Metric {
     _value: number = 0;
@@ -79,16 +82,20 @@ export class NUUMetric extends Metric {
  * Provides interpretation logic for the **Number of Unique Users (NUU)** metric.
  * This class assigns a weight to the metric based on the selected goals.
  * A default weight of `0.4` is assigned in case no goals are selected.
- * An initial hardcoded max value for normalization of `200` is used for the dynamic interpretation logic.
+ * A default initial hardcoded maximum of `200 users` is used
+ * as an initial **normalization benchmark** for NUU's interpretation.
  */
 export class NUUInterpreter extends MetricInterpreter {
     constructor(metric: NUUMetric, selectedGoals: Goal[]) {
-        super(metric, selectedGoals, 200); // Initial hardcoded max value for NUU
+        // Assume a maximum of 200 users
+        // as an initial benchmark for NUU's interpretation
+        super(metric, selectedGoals, 200);
     }
 
     /**
-     * Assigns a weight to the **NUU** metric.
+     * Assigns a weight to the **Number of Unique Users (NUU)** metric.
      * @returns A weight dynamically computed based on the selected goals; otherwise, 0.4.
+     * @see {@link NUUMetric}
      */
     assignWeight(): number {
         let weight = 0.4; // default weight
@@ -107,6 +114,8 @@ export class NUUInterpreter extends MetricInterpreter {
  * Represents the **Number of Visits (NoV)** metric.
  * This metric counts **the number of user visits to the app**
  * to measure `Interaction Capability -> User Engagement -> Popularity`.
+ * 
+ * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
  */
 export class NoVMetric extends Metric {
     _value: number = 0;
@@ -147,16 +156,20 @@ export class NoVMetric extends Metric {
  * Provides interpretation logic for the **Number of Visits (NoV)** metric.
  * This class assigns a weight to the metric based on the selected goals.
  * A default weight of `0.4` is assigned in case no goals are selected.
- * An initial hardcoded max value for normalization of `500` is used for the dynamic interpretation logic.
+ * A default initial hardcoded maximum of `500 visits` is used
+ * as an initial **normalization benchmark** for NoV's interpretation.
  */
 export class NoVInterpreter extends MetricInterpreter {
     constructor(metric: NoVMetric, selectedGoals: Goal[]) {
-        super(metric, selectedGoals, 500); // Initial hardcoded max value for NoV
+        // Assume a maximum of 500 visits
+        // as an initial benchmark for NoV's interpretation
+        super(metric, selectedGoals, 500);
     }
 
     /**
-     * Assigns a weight to the **NoV** metric.
+     * Assigns a weight to the **Number of Visits (NoV)** metric.
      * @returns A weight dynamically computed based on the selected goals; otherwise, 0.4.
+     * @see {@link NoVMetric}
      */
     assignWeight(): number {
         let weight = 0.4; // default weight
@@ -176,6 +189,8 @@ export class NoVInterpreter extends MetricInterpreter {
  * This metric calculates **the number of navigation clicks (_i.e., page view events_)
  * between different pages of the app** 
  * to measure `Interaction Capability -> User Engagement -> Popularity`.
+ * 
+ * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
  */
 export class NCPVMetric extends Metric {
     _value: number = 0;
@@ -229,16 +244,20 @@ export class NCPVMetric extends Metric {
  * Provides interpretation logic for the **Number of Clicks for Page Views (NCPV)** metric.
  * This class assigns a weight to the metric based on the selected goals.
  * A default weight of `0.4` is assigned in case no goals are selected.
- * An initial hardcoded max value for normalization of `1000` is used for the dynamic interpretation logic.
+ * A default initial hardcoded maximum of `1000 clicks for page views` is used
+ * as an initial **normalization benchmark** for NCPV's interpretation.
  */
 export class NCPVInterpreter extends MetricInterpreter {
     constructor(metric: NCPVMetric, selectedGoals: Goal[]) {
-        super(metric, selectedGoals, 1000); // Initial hardcoded max value for NCPV
+        // Assume a maximum of 1000 clicks for page views
+        // as an initial benchmark for NCPV's interpretation
+        super(metric, selectedGoals, 1000);
     }
 
     /**
-     * Assigns a weight to the **NCPV** metric.
+     * Assigns a weight to the **Number of Clicks for Page Views (NCPV)** metric.
      * @returns A weight dynamically computed based on the selected goals; otherwise, 0.4.
+     * @see {@link NCPVMetric}
      */
     assignWeight(): number {
         let weight = 0.4; // default weight
@@ -259,6 +278,8 @@ export class NCPVInterpreter extends MetricInterpreter {
  * 1. **Number of Unique Users (NUU)**;
  * 2. **Number of Visits (NoV)**;
  * 3. **Number of Clicks for Page Views (NCPV)**.
+ * 
+ * @see classes {@link NUUMetric}, {@link NoVMetric}, and {@link NCPVMetric}
  */
 export class PopularityMapper implements GoalMapper {
 
@@ -266,6 +287,7 @@ export class PopularityMapper implements GoalMapper {
      * Maps the `Interaction Capability -> User Engagement -> Popularity` goal to its metrics (NUU, NoV, and NCPV).
      * @param goal The goal to map.
      * @throws An error if the goal is not "Popularity".
+     * @see classes {@link NUUMetric}, {@link NoVMetric}, and {@link NCPVMetric}
      */
     map(goal: Goal) {
         if (goal.name !== "Popularity")

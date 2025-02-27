@@ -3,11 +3,14 @@ import { GoalMapper, Metric } from "../../../../../core/metrics/metrics-core";
 import { MetricInterpreter } from "../../../../../core/metrics/metrics-interpreters";
 import { TelemetryType, UserInteractionEvent } from "../../../../../core/telemetry/telemetry";
 import { Utils } from "../../../../../core/util/util-core";
+import { OpenTelemetryWebTracingInstrumentationAdapter } from "../../../../instrumentation/opentelemetry/tracing/opentelemetry-instrumentation-tracing-adapters";
 
 /**
  * Represents the **User Interaction Frequency (UIF)** metric.
  * This metric calculates **how frequently users interact with the app during a session**
  * to measure `Interaction Capability -> User Engagement -> Activity`.
+ * 
+ * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
  */
 export class UIFMetric extends Metric {
     _value: number = 0;
@@ -61,7 +64,7 @@ export class UIFMetric extends Metric {
     /**
      * Computes the value for **User Interaction Frequency (UIF)**.
      * @param telemetryData An array of telemetry data objects to analyze.
-     * @returns The computed value representing interactions per session.
+     * @returns The computed value representing the rate of user interactions per session.
      */
     computeValue(telemetryData: any[]): number {
         const selectedEventsStr = this._selectedEvents.map(event => {
@@ -110,16 +113,20 @@ export class UIFMetric extends Metric {
  * Provides interpretation logic for the **User Interaction Frequency (UIF)** metric.
  * This class assigns a weight to the metric based on the selected goals.
  * A default weight of `0.3` is assigned in case no goals are selected.
- * An initial hardcoded max value for normalization of `500` is used for the dynamic interpretation logic.
+ * A default initial hardcoded maximum of `500 interactions/session` is used
+ * as an initial **normalization benchmark** for UIF's interpretation.
  */
 export class UIFInterpreter extends MetricInterpreter {
     constructor(metric: UIFMetric, selectedGoals: Goal[]) {
-        super(metric, selectedGoals, 500); // Initial hardcoded max value for UIF
+        // Assume a maximum of 500 interactions/session
+        // as an initial benchmark for UIF's interpretation
+        super(metric, selectedGoals, 500);
     }
 
     /**
-     * Assigns a weight to the **UIF** metric.
+     * Assigns a weight to the **User Interaction Frequency (UIF)** metric.
      * @returns A weight dynamically computed based the selected goals; otherwise, 0.3.
+     * @see {@link UIFMetric}
      */
     assignWeight(): number {
         let weight = 0.3; // default weight
@@ -135,29 +142,31 @@ export class UIFInterpreter extends MetricInterpreter {
 }
 
 /**
- * Represents the **Click Depth Average (CDA)** metric.
+ * Represents the **Click Depth for Page Views Average (CDPVA)** metric.
  * This metric calculates **the average number of page views per visit**
  * (_i.e., user click events generate navigation to new pages/routes in the app_)
  * to measure `Interaction Capability -> User Engagement -> Activity`.
+ * 
+ * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
  */
-export class CDAMetric extends Metric {
+export class CDPVAMetric extends Metric {
     private _totalNavClicks: number = 0;
     private _uniqueVisits: number = 0;
 
     constructor() {
         super(
-            "Click Depth Average",
+            "Click Depth for Page Views Average",
             "Average number of navigation clicks (page views) per visit",
             "clicks/visit",
-            "CDA",
+            "CDPVA",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
     }
 
     /**
-     * Computes the value for **Click Depth Average (CDA)**.
+     * Computes the value for **Click Depth for Page Views Average (CDPVA)**.
      * @param telemetryData An array of telemetry data objects to analyze.
-     * @returns The computed value representing the average number of page views per visit
+     * @returns The computed value representing the average number of clicks for page views per visit
      */
     computeValue(telemetryData: any[]): number {
         // Identify set of visits and group navigation click events by visits
@@ -183,7 +192,7 @@ export class CDAMetric extends Metric {
 
         // Compute the total number of navigation clicks from the navigation dictionary
         // and divide it by the number of unique visits computed from the visits sets
-        // to obtain the CDA value
+        // to obtain the CDPVA value
         this._uniqueVisits = visits.size;
         this._totalNavClicks = Object.values(navClicksByVisit).reduce((sum, count) => sum + count, 0);
 
@@ -207,22 +216,27 @@ export class CDAMetric extends Metric {
 }
 
 /**
- * Provides interpretation logic for the **Click Depth Average (CDA)** metric.
+ * Provides interpretation logic for the **Click Depth for Page Views Average (CDPVA)** metric.
  * This class assigns a weight to the metric based on the selected goals.
  * A default weight of `0.3` is assigned in case no goals are selected.
- * An initial hardcoded max value for normalization of `10` is used for the dynamic interpretation logic.
+ * A default initial hardcoded maximum of `10 clicks/visit for page views` is used
+ * as an initial **normalization benchmark** for CDPVA's interpretation.
  */
-export class CDAInterpreter extends MetricInterpreter {
-    constructor(metric: CDAMetric, selectedGoals: Goal[]) {
-        super(metric, selectedGoals, 10); // Initial hardcoded max value for CDA
+export class CDPVAInterpreter extends MetricInterpreter {
+    constructor(metric: CDPVAMetric, selectedGoals: Goal[]) {
+        // Assume a maximum of 10 clicks/visit
+        // as an initial benchmark for CDPVA's interpretation
+        super(metric, selectedGoals, 10);
     }
 
     /**
-     * Assigns a weight to the **CDA** metric.
+     * Assigns a weight to the **Click Depth for Page Views Average (CDPVA)** metric.
      * @returns A weight dynamically computed based on the selected goals; otherwise, 0.3.
+     * @see {@link CDPVAMetric}
      */
     assignWeight(): number {
         let weight = 0.3; // default weight
+        // If selected goals includes "Activity"
         if (this.selectedGoals.some(goal => goal.name === "Activity")) {
             const activity = this.selectedGoals.find(goal => goal.name === "Activity");
             if (activity)
@@ -236,6 +250,8 @@ export class CDAInterpreter extends MetricInterpreter {
  * Represents the **Dwell Time Average (DTA)** metric.
  * This metric calculates **the average time per visit**
  * to measure `Interaction Capability -> User Engagement -> Activity`.
+ * 
+ * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
  */
 export class DTAMetric extends Metric {
     constructor() {
@@ -244,7 +260,7 @@ export class DTAMetric extends Metric {
             "Average time per visit (dwell time)",
             "ms/visit",
             "DTA",
-            [TelemetryType.TRACING]
+            [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
     }
 
@@ -302,43 +318,49 @@ export class DTAMetric extends Metric {
  * Provides interpretation logic for the **Dwell Time Average (DTA)** metric.
  * This class assigns a weight to the metric based on the selected goals.
  * A default weight of `0.3` is assigned in case no goals are selected.
- * An initial hardcoded max value for normalization of `30000`ms (_i.e., 30 seconds_)
- * is used for the dynamic interpretation logic.
+ * A default initial hardcoded maximum of `30,000ms (30 seconds) per visit` is used
+ * as an initial **normalization benchmark** for DTA's interpretation.
  */
 export class DTAInterpreter extends MetricInterpreter {
     constructor(metric: DTAMetric, selectedGoals: Goal[]) {
-      // Assume an initial maximum average dwell time of 30000 ms (30 seconds)
-      super(metric, selectedGoals, 30000); // Initial hardcoded max value for DTA
+        // Assume a maximum of 30,000ms (30 seconds) per visit
+        // as an initial benchmark for DTA's interpretation
+        super(metric, selectedGoals, 30000);
     }
-  
+
     /**
-     * Assigns a weight to the **DTA** metric.
+     * Assigns a weight to the **Dwell Time Average (DTA)** metric.
      * @returns A weight dynamically computed based on the selected goals; otherwise, 0.3.
+     * @see {@link DTAMetric}
      */
     assignWeight(): number {
-      let weight = 0.3; // default weight
-      if (this.selectedGoals.some(goal => goal.name === "Activity")) {
-        const activity = this.selectedGoals.find(goal => goal.name === "Activity");
-        if (activity)
-            weight = (activity.weight || 1) / (activity.metrics.length || 1);
-      }
-      return weight;
+        let weight = 0.3; // default weight
+        // If selected goals includes "Activity"
+        if (this.selectedGoals.some(goal => goal.name === "Activity")) {
+            const activity = this.selectedGoals.find(goal => goal.name === "Activity");
+            if (activity)
+                weight = (activity.weight || 1) / (activity.metrics.length || 1);
+        }
+        return weight;
     }
-  }
+}
 
 /**
  * This class is responsible for mapping the `Interaction Capability -> User Engagement -> Activity`
  * goal to its corresponding metrics:
- * 1. **User Interaction Frequency (UIF)**
- * 2. **Click Depth Average (CDA)**
+ * 1. **User Interaction Frequency (UIF)**;
+ * 2. **Click Depth for Page Views Average (CDPVA)**;
  * 3. **Dwell Time Average (DTA)**.
+ * 
+ * @see classes {@link UIFMetric}, {@link CDPVAMetric}, and {@link DTAMetric}
  */
 export class ActivityMapper implements GoalMapper {
 
     /**
-     * Maps the `Interaction Capability -> User Engagement -> Activity` goal to its metrics (UIF, CDA, and DTA).
+     * Maps the `Interaction Capability -> User Engagement -> Activity` goal to its metrics (UIF, CDPVA, and DTA).
      * @param goal The goal to map.
      * @throws An error if the goal is not "Activity".
+     * @see classes {@link UIFMetric}, {@link CDPVAMetric}, and {@link DTAMetric}
      */
     map(goal: Goal) {
         if (goal.name !== "Activity")
@@ -348,7 +370,7 @@ export class ActivityMapper implements GoalMapper {
         goal.weight = 0.35;
         goal.metrics.push(
             new UIFMetric(),
-            new CDAMetric(),
+            new CDPVAMetric(),
             new DTAMetric()
         );
     }
