@@ -93,7 +93,10 @@ export class QualityAssessmentService implements IProgressTrackable {
         console.log('Quality Assessment Service: Computing new assessments...');
 
         // Perform assessment for each goal using the newly computed metrics.
-        const assessments = this.assessmentEngine.assessGoals(this.selectedGoals, metrics);
+        const assessments = this.assessmentEngine.assess({ 
+            metadata: this.appInstrumentationMetadata?.appMetadata!, 
+            selectedGoals: this.selectedGoals 
+        }, metrics);
 
         // Attach the computed assessments to the respective goals.
         this.selectedGoals.forEach(goal => {
@@ -135,14 +138,19 @@ export class QualityAssessmentService implements IProgressTrackable {
         this.progressTracker.notifyProgress('Quality Assessment Service: Starting quality goal assessment...');
         console.log('Quality Assessment Service: Starting quality goal assessment...');
 
-        // Extract metrics associated with the selected goals.
-        const selectedMetrics = this.selectedGoals.flatMap(goal => goal.metrics);
+        // Extract (unique) metrics associated with the selected goals.
+        const metricSet = new Set<Metric>();
+        this.selectedGoals.forEach(goal => goal.metrics.forEach(metric => metricSet.add(metric)));
+        const selectedMetrics = Array.from(metricSet);
 
         // Compute the metrics using the metrics service.
         const computedMetrics = await this.metricsService.computeMetrics(this.collector, this.appInstrumentationMetadata!, selectedMetrics);
 
         // Perform assessments based on the computed metrics.
-        const assessments = this.assessmentEngine.assessGoals(this.selectedGoals, computedMetrics);
+        const assessments = this.assessmentEngine.assess({ 
+            metadata: this.appInstrumentationMetadata?.appMetadata!, 
+            selectedGoals: this.selectedGoals 
+        }, computedMetrics);
 
         // Attach assessments to the respective goals.
         this.selectedGoals.forEach(goal => {

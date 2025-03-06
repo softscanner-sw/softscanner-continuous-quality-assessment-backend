@@ -1,3 +1,4 @@
+import { ApplicationMetadata } from "../core/application/application-metadata";
 import { CompositeGoal, Goal } from "../core/goals/goals";
 import { Metric } from "../core/metrics/metrics-core";
 import { SSQMM } from "../core/models/ssqmm.model";
@@ -8,7 +9,11 @@ import { SSQMM } from "../core/models/ssqmm.model";
  */
 export class QualityModelService {
     // Instance of SSQMM representing the quality model
-    private _ssqmm: SSQMM = new SSQMM();
+    private _ssqmm: SSQMM;
+
+    constructor() {
+        this._ssqmm = new SSQMM();
+    }
 
     /**
      * Getter for accessing the SSQMM instance.
@@ -16,6 +21,11 @@ export class QualityModelService {
      */
     get ssqmm(): SSQMM {
         return this._ssqmm;
+    }
+
+    buildMap(appMetadata: ApplicationMetadata){
+        this._ssqmm = new SSQMM(appMetadata);
+        this._ssqmm.buildMap();
     }
 
     /**
@@ -29,8 +39,8 @@ export class QualityModelService {
 
         goals.forEach(goal => {
             // Recursively process sub-goals for composite goals
-            if (goal instanceof CompositeGoal)
-                metrics.push(...this.extractRequiredMetrics(goal.subGoals, selectedGoals));
+            if (goal.isComposite())
+                metrics.push(...this.extractRequiredMetrics((goal as CompositeGoal).subGoals, selectedGoals));
 
             // Collect metrics for leaf goals that match the selected goal names
             if (selectedGoals.includes(goal.name))

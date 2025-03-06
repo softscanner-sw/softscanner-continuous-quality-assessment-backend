@@ -2,8 +2,9 @@ import { ActivityMapper } from "../../modules/metrics/interaction-capability/use
 import { LoyaltyMapper } from "../../modules/metrics/interaction-capability/user-engagement/loyalty/user-engagement-loyalty-metrics";
 import { PopularityMapper } from "../../modules/metrics/interaction-capability/user-engagement/popularity/user-engagement-popularity-metrics";
 import { TimeBehaviorMapper } from "../../modules/metrics/performance-efficiency/time-behavior/time-behavior-metrics";
-import { CompositeGoal, GoalVisitor, LeafGoal } from "../goals/goals";
-import { GoalMapper, Metric } from "./metrics-core";
+import { ApplicationMetadata } from "../application/application-metadata";
+import { CompositeGoal, GoalMapper, GoalVisitor, LeafGoal } from "../goals/goals";
+import { Metric } from "./metrics-core";
 
 /**
  * Class responsible for mapping goals to corresponding metrics.
@@ -12,13 +13,15 @@ import { GoalMapper, Metric } from "./metrics-core";
 export class MetricsMapper implements GoalVisitor {
     protected _mapper?: GoalMapper;
 
+    constructor(public appMetadata: ApplicationMetadata) { }
+
     /**
      * Visits a composite goal and recursively visits its sub-goals.
      * @param goal - The composite goal to visit.
      */
     visitCompositeGoal(goal: CompositeGoal): Metric[] | void {
         goal.subGoals.forEach(subGoal => subGoal.accept(this));
-        goal.subGoals.forEach(subGoal => goal.metrics.push(...subGoal.metrics));
+        goal.subGoals.forEach(subGoal => subGoal.metrics.forEach(metric => goal.metrics.add(metric)));
     }
 
     /**
@@ -26,20 +29,20 @@ export class MetricsMapper implements GoalVisitor {
      * @param goal - The leaf goal to visit.
      */
     visitLeafGoal(goal: LeafGoal): Metric[] | void {
-        switch (goal.name) {
+        switch (goal.name.toLowerCase()) {
             /* USER ENGAGEMENT Leaf Goals */
-            case "Activity":
-                this._mapper = new ActivityMapper();
+            case "activity":
+                this._mapper = new ActivityMapper(this.appMetadata);
                 break;
-            case "Loyalty":
-                this._mapper = new LoyaltyMapper();
+            case "loyalty":
+                this._mapper = new LoyaltyMapper(this.appMetadata);
                 break;
-            case "Popularity":
-                this._mapper = new PopularityMapper();
+            case "popularity":
+                this._mapper = new PopularityMapper(this.appMetadata);
                 break;
             /* PERFORMANCE EFFICIENCY Leaf Goals */
-            case "Time Behavior":
-                this._mapper = new TimeBehaviorMapper();
+            case "time behavior":
+                this._mapper = new TimeBehaviorMapper(this.appMetadata);
                 break;
             default:
                 this._mapper = undefined;

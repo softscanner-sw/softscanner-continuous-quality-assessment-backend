@@ -83,7 +83,7 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
 
     /**
      * Generates the necessary import statements based on the configuration.
-     * This includes imports for console, OTLP, and WebSocket exporters as well as page data and app metadata processing.
+     * This includes imports for console, OTLP, and WebSocket exporters as well as user identity data and app metadata processing.
      * @returns {string} - A string containing the import statements
      */
     public generateImportations(): string {
@@ -109,10 +109,10 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
             `.trim();
         }
 
-        // Importation for page data exportation (if provided in the configuration)
-        if (automaticTracingOptions.pageData) {
+        // Importation for user identity data exportation (if provided in the configuration)
+        if (automaticTracingOptions.userIdData) {
             importations += `
-            ${InstrumentationGenerator.generateImportFromStatement('PageDataSpanProcessor', '../utils/pageUtils')}
+            ${InstrumentationGenerator.generateImportFromStatement('UserIdentitySpanProcessor', '../utils/userUtils')}
             `.trim();
         }
 
@@ -241,7 +241,7 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
 
     /**
      * Generates code for adding span processors to the tracer provider.
-     * This includes page data and application metadata processors if enabled.
+     * This includes user identity data and application metadata processors if enabled.
      * @returns {string} - A string containing the span processor registration code
      */
     private generateAddSpanProcessors(): string {
@@ -265,9 +265,9 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
                     })`.trim();
             }
 
-            // Check for page data span processing
-            if (automaticTracingOptions.pageData) {
-                spanProcessor = `new PageDataSpanProcessor(${spanProcessor})`.trim();
+            // Check for user identity data span processing
+            if (automaticTracingOptions.userIdData) {
+                spanProcessor = `new UserIdentitySpanProcessor(${spanProcessor})`.trim();
             }
 
             content += `

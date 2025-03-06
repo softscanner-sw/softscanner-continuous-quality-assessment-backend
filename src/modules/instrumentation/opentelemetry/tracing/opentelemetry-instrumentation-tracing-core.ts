@@ -14,23 +14,23 @@ export class OpenTelemetryUserInteractionEventsConfig {
 
 export abstract class OpenTelemetryAutomaticTracingOptions {
     public appMetadata: boolean;
-    public pageData: boolean;
+    public userIdData: boolean;
 
     constructor({
         /**
          * Whether to include application metadata during tracing (e.g., app name, version).
-         * Default: false
+         * Default: true
          */
         appMetadata = true,
 
         /**
-         * Whether to capture page data (e.g., session, visit IDs).
-         * Default: false
+         * Whether to capture user identity data (e.g., user, session, and visit IDs).
+         * Default: true
          */
-        pageData = true,
+        userIdData = true,
     }) {
         this.appMetadata = appMetadata;
-        this.pageData = pageData;
+        this.userIdData = userIdData;
     }
 
     abstract mapOptionsToAutoInstrumentationModules(): Map<string, string>;
@@ -65,15 +65,15 @@ export class OpenTelemetryWebAutomaticTracingOptions extends OpenTelemetryAutoma
     constructor({
         /**
          * Whether to include application metadata during tracing (e.g., app name, version).
-         * Default: false
+         * Default: true
          */
         appMetadata = true,
 
         /**
-         * Whether to capture page data (e.g., session, visit IDs).
-         * Default: false
+         * Whether to capture user identity data (e.g., user, session, and visit IDs).
+         * Default: true
          */
-        pageData = true,
+        userIdData = true,
 
         /**
          * Configuration for user interaction events to be traced (e.g., clicks, form submissions).
@@ -85,7 +85,7 @@ export class OpenTelemetryWebAutomaticTracingOptions extends OpenTelemetryAutoma
 
         /**
          * Whether to trace document loading and resource fetching.
-         * Default: true
+         * Default: false
          */
         documentLoad = false,
 
@@ -101,7 +101,7 @@ export class OpenTelemetryWebAutomaticTracingOptions extends OpenTelemetryAutoma
          */
         ajaxRequests = false,
     }) {
-        super({ appMetadata, pageData });
+        super({ appMetadata, userIdData });
         this.userInteractions = userInteractions;
         this.documentLoad = documentLoad;
         this.fetchApi = fetchApi;
@@ -163,15 +163,15 @@ export class OpenTelemetryNodeAutomaticTracingOptions extends OpenTelemetryAutom
     constructor({
         /**
          * Whether to include application metadata during tracing (e.g., app name, version).
-         * Default: false
+         * Default: true
          */
         appMetadata = true,
 
         /**
-         * Whether to capture page data (e.g., session, visit IDs).
-         * Default: false
+         * Whether to capture user identity data (e.g., user, session, and visit IDs).
+         * Default: true
          */
-        pageData = true,
+        userIdData = true,
         amqplib = false,
         awsLambda = false,
         awsSdk = false,
@@ -208,7 +208,7 @@ export class OpenTelemetryNodeAutomaticTracingOptions extends OpenTelemetryAutom
         undici = false,
         winston = false,
     }) {
-        super({ appMetadata, pageData });
+        super({ appMetadata, userIdData });
         this.amqplib = amqplib;
         this.awsLambda = awsLambda;
         this.awsSdk = awsSdk;

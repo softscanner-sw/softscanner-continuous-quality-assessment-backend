@@ -9,7 +9,7 @@ import { Metric } from "../metrics/metrics-core";
  * @abstract
  */
 export abstract class Goal {
-    protected _metrics: Metric[] = [];  // List of associated metrics for this goal
+    protected _metrics: Set<Metric> = new Set();  // List of associated metrics for this goal
     assessments: Assessment[] = [];     // List of assessments for this goal
 
     constructor(
@@ -84,7 +84,7 @@ export abstract class Goal {
     /**
      * Returns the list of metrics associated with this goal.
      */
-    get metrics(): Metric[] {
+    get metrics(): Set<Metric> {
         return this._metrics;
     }
 
@@ -103,17 +103,23 @@ export abstract class Goal {
         return this.assessments.length > 0 ? this.assessments[this.assessments.length - 1] : null;
     }
 
+    hasMetric(metric: Metric){
+        return Array.from(this.metrics).some(m => m.acronym === metric.acronym);
+    }
+
     /**
      * Abstract method to display goal information.
      * @param depth - Depth level in the goal hierarchy for indentation (used in composite goals).
      */
     abstract displayInfo(depth?: number): void;
 
+    abstract isComposite(): boolean;
+
     /**
      * Abstract method to accept a visitor for mapping metrics to this goal.
      * @param visitor - The visitor implementing the GoalVisitor interface.
      */
-    abstract accept(visitor: GoalVisitor): void;
+    abstract accept(visitor: GoalVisitor): any;
 
     /**
      * Abstract method to convert the goal to JSON, handling circular references.
@@ -133,6 +139,10 @@ export class CompositeGoal extends Goal {
      */
     public get subGoals() {
         return this._subGoals;
+    }
+
+    isComposite(): boolean {
+        return true;
     }
 
     /**
@@ -174,8 +184,8 @@ export class CompositeGoal extends Goal {
      * Accepts a visitor for mapping metrics to this composite goal and its sub-goals.
      * @param visitor - The visitor implementing the GoalVisitor interface.
      */
-    accept(visitor: GoalVisitor): void {
-        visitor.visitCompositeGoal(this) ?? this._metrics;
+    accept(visitor: GoalVisitor): any {
+        return visitor.visitCompositeGoal(this) ?? this._metrics;
     }
 
     /**
@@ -195,7 +205,7 @@ export class CompositeGoal extends Goal {
             name: this.name,
             description: this.description,
             weight: this.weight,
-            metrics: this.metrics.map(metric => metric.name),
+            metrics: Array.from(this.metrics).map(metric => metric.name),
             subGoals: this._subGoals.map(goal => goal.toJSON()) // Recursively serialize sub-goals
         };
     }
@@ -206,12 +216,17 @@ export class CompositeGoal extends Goal {
  * This is a terminal node in the goal hierarchy.
  */
 export class LeafGoal extends Goal {
+    
+    isComposite(): boolean {
+        return false;
+    }
+
     /**
      * Accepts a visitor for mapping metrics to this leaf goal.
      * @param visitor - The visitor implementing the GoalVisitor interface.
      */
-    accept(visitor: GoalVisitor): void {
-        visitor.visitLeafGoal(this) ?? this._metrics;
+    accept(visitor: GoalVisitor): any {
+        return visitor.visitLeafGoal(this) ?? this._metrics;
     }
 
     /**
@@ -230,7 +245,7 @@ export class LeafGoal extends Goal {
             name: this.name,
             description: this.description,
             weight: this.weight,
-            metrics: this.metrics.map(metric => metric.name)
+            metrics: Array.from(this.metrics).map(metric => metric.name)
         };
     }
 }
@@ -251,4 +266,11 @@ export interface GoalVisitor {
      * @param goal - The leaf goal being visited.
      */
     visitLeafGoal(goal: LeafGoal): Metric[] | void;
+}
+
+/**
+ * Interface for mapping goals to any other elements.
+ */
+export interface GoalMapper {
+    map(goal: Goal): any
 }

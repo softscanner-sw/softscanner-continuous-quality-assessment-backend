@@ -1,128 +1,118 @@
-import { Goal } from "../../../../../core/goals/goals";
-import { GoalMapper, Metric } from "../../../../../core/metrics/metrics-core";
+import { ApplicationMetadata } from "../../../../../core/application/application-metadata";
+import { Goal, GoalMapper } from "../../../../../core/goals/goals";
+import { MetricsComputer } from "../../../../../core/metrics/metrics-computation";
+import { CompositeMetric, LeafMetric, Metric } from "../../../../../core/metrics/metrics-core";
 import { MetricInterpreter } from "../../../../../core/metrics/metrics-interpreters";
 import { TelemetryType } from "../../../../../core/telemetry/telemetry";
 import { OpenTelemetryWebTracingInstrumentationAdapter } from "../../../../instrumentation/opentelemetry/tracing/opentelemetry-instrumentation-tracing-adapters";
 
 /**
- * Represents the **Number of Unique Users (NUU)** metric.
- * This metric counts **the number of distinct user sessions of an app** 
- * to measure `Interaction Capability -> User Engagement -> Popularity`.
+ * Metric: **Number of Users (NoU)**
+ *
+ * Computes the number of distinct users of the target instrumented application.
+ * Its value is computed from user interaction traces
+ * by extracting and filtering the attached user IDs.
+ *
+ * **Unit**: `users`
+ * **Acronym**: `NoU`
+ * **Required Telemetry**: `TRACING`
  * 
  * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
+ * @requires {@link TelemetryType}
  */
-export class NUUMetric extends Metric {
+export class NoUMetric extends LeafMetric {
     _value: number = 0;
 
-    constructor(
-        private _nbSessions: number = 1,
-    ) {
+    constructor() {
         super(
-            "Number of Unique Users",
-            "Number of distinct users using an application",
+            "Number of Users",
+            "Number of unique, distinct users using an application",
             "users",
-            "NUU",
+            "NoU",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
     }
 
     /**
-     * Returns the number of sessions used for computation.
-     */
-    get nbSessions(): number {
-        return this._nbSessions;
-    }
-
-    /**
-     * Sets the number of sessions. Throws an error if set to zero.
-     */
-    set nbSessions(nbSessions: number) {
-        if (this._nbSessions === 0) {
-            throw new Error("NUU Metric: Number of sessions cannot be zero.");
-        }
-
-        this._nbSessions = nbSessions;
-    }
-
-    /**
-     * Computes the value for the **Number of Unique Users (NUU)** metric.
+     * Computes the value for the **Number of Users (NoU)** metric.
+     * 
+     * It initializes a set of users that gets populated by extracting and filtering
+     * unique `app.user.id` values from the telemetry data.
+     * 
      * @param telemetryData An array of telemetry data objects to analyze.
-     * @returns The computed value representing the number of unique users (sessions).
+     * @returns The number of unique, distinct users using the application
      */
     computeValue(telemetryData: any[]) {
-        // Compute distinct number of sessions
-        let sessions: Set<string> = new Set<string>();
-
-        telemetryData
-            .map(data => data.attributes["app.session.id"])
-            .forEach(sessionID => {
-                if (!sessions.has(sessionID))
-                    sessions.add(sessionID);
-            });
-        this._nbSessions = sessions.size;
-
-        // Compute metric
-        if (this._nbSessions > 0)
-            this._value = this._nbSessions;
+        // Compute the number of users
+        // from the unique values of the 'app.user.id' telemetry attribute
+        const nbUsers = MetricsComputer.uniqueCount(telemetryData, 'app.user.id');
+        if (nbUsers > 0)
+            this._value = nbUsers;
 
         return this._value;
     }
 
     /**
-     * Resets the session count parameter and the metric value to their default states.
+     * Resets the metric value to its initial state.
      */
     resetValue(): void {
         super.resetValue();
-        this._nbSessions = 1;
         this._value = 0;
     }
 
-}
-/**
- * Provides interpretation logic for the **Number of Unique Users (NUU)** metric.
- * This class assigns a weight to the metric based on the selected goals.
- * A default weight of `0.4` is assigned in case no goals are selected.
- * A default initial hardcoded maximum of `200 users` is used
- * as an initial **normalization benchmark** for NUU's interpretation.
- */
-export class NUUInterpreter extends MetricInterpreter {
-    constructor(metric: NUUMetric, selectedGoals: Goal[]) {
-        // Assume a maximum of 200 users
-        // as an initial benchmark for NUU's interpretation
-        super(metric, selectedGoals, 200);
-    }
-
     /**
-     * Assigns a weight to the **Number of Unique Users (NUU)** metric.
-     * @returns A weight dynamically computed based on the selected goals; otherwise, 0.4.
-     * @see {@link NUUMetric}
+     * Returns a new interpreter for this metric for the provided goal.
+     * @param goal - The goal in the context of which the metric is interpreted.
+     * @returns - An instance of `NoUInterpreter` to interpret this metric for the provided goal.
+     * @see {@link NoUInterpreter}.
      */
-    assignWeight(): number {
-        let weight = 0.4; // default weight
-        // If selected goals includes "Popularity"
-        if (this.selectedGoals.some(goal => goal.name === "Popularity")) {
-            const popularity = this.selectedGoals.find(goal => goal.name === "Popularity");
-            if (popularity)
-                weight = (popularity.weight || 1) / (popularity.metrics.length || 1);
-        }
-
-        return weight;
+    getInterpter(goal: Goal): NoUInterpreter {
+        return new NoUInterpreter(this, goal);
     }
 }
 
 /**
- * Represents the **Number of Visits (NoV)** metric.
- * This metric counts **the number of user visits to the app**
- * to measure `Interaction Capability -> User Engagement -> Popularity`.
+ * Interpreter for the **Number of Users (NoU)** metric.
+ *
+ * Normalizes the computed value using a benchmark (200 users, by default)
+ * and assigns a weight (0.4, by default) based on the selected goals.
+ * 
+ * @see {@link NoUMetric}
+ */
+export class NoUInterpreter extends MetricInterpreter {
+    constructor(
+        metric: NoUMetric,
+        goal: Goal,
+        // Assume a maximum of 200 users
+        // as an initial benchmark for NoU's interpretation
+        initialMaxValue: number = 200,
+        // Assume a default weight of 0.4
+        baseWeight = 0.4
+    ) {
+        super(metric, goal, initialMaxValue, baseWeight);
+    }
+}
+
+/**
+ * Metric: **Number of Visits (NoV)**
+ *
+ * Computes the total number of user visits to the target instrumented application.
+ * Its value is computed from user interaction traces
+ * by extracting and filtering the attached visit IDs.
+ *
+ * **Unit**: `visits`
+ * **Acronym**: `NoV`
+ * **Required Telemetry**: `TRACING`
  * 
  * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
+ * @requires {@link TelemetryType}
  */
-export class NoVMetric extends Metric {
+export class NoVMetric extends LeafMetric {
     _value: number = 0;
     constructor() {
         super(
             "Number of Visits",
-            "Total number of visits to the application",
+            "Total number of user visits to the application",
             "visits",
             "NoV",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
@@ -130,16 +120,21 @@ export class NoVMetric extends Metric {
     }
 
     /**
-     * Counts the number of visits by counting unique visit ids.
+     * Computes the value for the **Number of Visits (NoV)** metric.
+     * 
+     * It initializes a set of visits that gets populated by extracting and filtering
+     * unique `app.visit.id` values from the telemetry data.
+     * 
      * @param telemetryData An array of telemetry data objects to analyze.
-     * @returns The computed value representing number of unique app visits
+     * @returns The number of user visits
      */
     computeValue(telemetryData: any[]): number {
-        const visits = new Set<string>();
-        telemetryData
-            .map(data => data.attributes["app.visit.id"])
-            .forEach(visitId => { if (visitId) visits.add(visitId); });
-        this._value = visits.size;
+        // Compute the number of visits
+        // from the unique values of the 'app.visit.id' telemetry attribute
+        const nbVisits = MetricsComputer.uniqueCount(telemetryData, 'app.visit.id');
+        if (nbVisits > 0)
+            this._value = nbVisits;
+
         return this._value;
     }
 
@@ -150,84 +145,82 @@ export class NoVMetric extends Metric {
         super.resetValue();
         this._value = 0;
     }
-}
-
-/**
- * Provides interpretation logic for the **Number of Visits (NoV)** metric.
- * This class assigns a weight to the metric based on the selected goals.
- * A default weight of `0.4` is assigned in case no goals are selected.
- * A default initial hardcoded maximum of `500 visits` is used
- * as an initial **normalization benchmark** for NoV's interpretation.
- */
-export class NoVInterpreter extends MetricInterpreter {
-    constructor(metric: NoVMetric, selectedGoals: Goal[]) {
-        // Assume a maximum of 500 visits
-        // as an initial benchmark for NoV's interpretation
-        super(metric, selectedGoals, 500);
-    }
 
     /**
-     * Assigns a weight to the **Number of Visits (NoV)** metric.
-     * @returns A weight dynamically computed based on the selected goals; otherwise, 0.4.
-     * @see {@link NoVMetric}
+     * Returns a new interpreter for this metric for the provided goal.
+     * @param goal - The goal in the context of which the metric is interpreted.
+     * @returns - An instance of `NoVInterpreter` to interpret this metric for the provided goal.
+     * @see {@link NoVInterpreter}.
      */
-    assignWeight(): number {
-        let weight = 0.4; // default weight
-        // If selected goals includes "Popularity"
-        if (this.selectedGoals.some(goal => goal.name === "Popularity")) {
-            const popularity = this.selectedGoals.find(goal => goal.name === "Popularity");
-            if (popularity)
-                weight = (popularity.weight || 1) / (popularity.metrics.length || 1);
-        }
-
-        return weight;
+    getInterpter(goal: Goal): NoVInterpreter {
+        return new NoVInterpreter(this, goal);
     }
 }
 
 /**
- * Represents the **Number of Clicks for Page Views (NCPV)** metric.
- * This metric calculates **the number of navigation clicks (_i.e., page view events_)
- * between different pages of the app** 
- * to measure `Interaction Capability -> User Engagement -> Popularity`.
+ * Interpreter for the **Number of Visits (NoV)** metric.
+ *
+ * Normalizes the computed value using a benchmark (500 visits, by default)
+ * and assigns a weight (0.4, by default) based on the selected goals.
+ * 
+ * @see {@link NoVMetric}
+ */
+export class NoVInterpreter extends MetricInterpreter {
+    constructor(
+        metric: NoVMetric,
+        goal: Goal,
+        // Assume a maximum of 500 visits
+        // as an initial benchmark for NoV's interpretation
+        initialMaxValue: number = 500,
+        // Assume a default weight of 0.4
+        baseWeight = 0.4
+    ) {
+        super(metric, goal, initialMaxValue, baseWeight);
+    }
+}
+
+/**
+ * Metric: **Number of Sessions (NoS)**
+ *
+ * Computes the total number of user sessions to the target instrumented application.
+ * Its value is computed from user interaction traces
+ * by extracting and filtering the attached session IDs.
+ *
+ * **Unit**: `sessions`
+ * **Acronym**: `NoS`
+ * **Required Telemetry**: `TRACING`
  * 
  * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
+ * @requires {@link TelemetryType}
  */
-export class NCPVMetric extends Metric {
+export class NoSMetric extends LeafMetric {
     _value: number = 0;
-
     constructor() {
         super(
-            "Number of Clicks for Page Views",
-            "Total number of navigation clicks (page views) in the application",
-            "clicks",
-            "NCPV",
+            "Number of Sessions",
+            "Total number of user interaction sessions with the application",
+            "sessions",
+            "NoS",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
     }
 
     /**
-     * Computes the value for the NCPV metric.
-     * An event is considered a navigation click if:
-     *   - Its attribute "event_type" equals "click"
-     *   - Its trace name includes the substring "navigation:" (case-insensitive)
-     *
+     * Computes the value for the **Number of Sessions (NoS)** metric.
+     * 
+     * It initializes a set of sessions that gets populated by extracting and filtering
+     * unique `app.session.id` values from the telemetry data.
+     * 
      * @param telemetryData An array of telemetry data objects to analyze.
-     * @returns The computed value representing the number of navigation clicks.
+     * @returns The number of user sessions
      */
     computeValue(telemetryData: any[]): number {
-        let clickCount = 0;
-        telemetryData.forEach(data => {
-            const eventType = data.attributes["event_type"];
-            const traceName = data.name;
-            if (
-                eventType === "click" &&
-                typeof traceName === "string" &&
-                traceName.toLowerCase().includes("navigation:")
-            ) {
-                clickCount++;
-            }
-        });
-        this._value = clickCount;
+        // Compute the number of sessions
+        // from the unique values of the 'app.session.id' telemetry attribute
+        const nbSessions = MetricsComputer.uniqueCount(telemetryData, 'app.session.id');
+        if (nbSessions > 0)
+            this._value = nbSessions;
+
         return this._value;
     }
 
@@ -238,67 +231,448 @@ export class NCPVMetric extends Metric {
         super.resetValue();
         this._value = 0;
     }
+
+    /**
+     * Returns a new interpreter for this metric for the provided goal.
+     * @param goal - The goal in the context of which the metric is interpreted.
+     * @returns - An instance of `NoSInterpreter` to interpret this metric for the provided goal.
+     * @see {@link NoSInterpreter}.
+     */
+    getInterpter(goal: Goal): NoSInterpreter {
+        return new NoSInterpreter(this, goal);
+    }
 }
 
 /**
- * Provides interpretation logic for the **Number of Clicks for Page Views (NCPV)** metric.
- * This class assigns a weight to the metric based on the selected goals.
- * A default weight of `0.4` is assigned in case no goals are selected.
- * A default initial hardcoded maximum of `1000 clicks for page views` is used
- * as an initial **normalization benchmark** for NCPV's interpretation.
+ * Interpreter for the **Number of Sessions (NoS)** metric.
+ *
+ * Normalizes the computed value using a benchmark (1000 sessions, by default)
+ * and assigns a weight (0.4, by default) based on the selected goals.
+ * 
+ * @see {@link NoSMetric}
  */
-export class NCPVInterpreter extends MetricInterpreter {
-    constructor(metric: NCPVMetric, selectedGoals: Goal[]) {
-        // Assume a maximum of 1000 clicks for page views
-        // as an initial benchmark for NCPV's interpretation
-        super(metric, selectedGoals, 1000);
+export class NoSInterpreter extends MetricInterpreter {
+    constructor(
+        metric: NoSMetric,
+        goal: Goal,
+        // Assume a maximum of 1000 sessions
+        // as an initial benchmark for NoS' interpretation
+        initialMaxValue: number = 1000,
+        // Assume a default weight of 0.4
+        baseWeight = 0.4
+    ) {
+        super(metric, goal, initialMaxValue, baseWeight);
+    }
+}
+
+/**
+ * Metric: **Average Visits per User (NoVu)**
+ *
+ * Computes the average number of visits per user.
+ * It groups telemetry data by user, counts unique visits per user, and averages these values.
+ *
+ * **Unit:** `visits/user`
+ * **Acronym:** `NoVu`
+ * **Required Telemetry:** `TRACING`
+ * 
+ * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
+ * @requires {@link TelemetryType}
+ * @see {@link NoUMetric}
+ */
+export class NoVuMetric extends CompositeMetric {
+    _value: number = 0;
+
+    constructor() {
+        super(
+            "Average Visits per User",
+            "Average number of visits per user",
+            "visits/user",
+            "NoVu",
+            [TelemetryType.TRACING] // The metric requires tracing telemetry
+        );
+        // Use NoUMetric as a child to obtain the unique user count.
+        this.children = {
+            "NoU": new NoUMetric()
+        };
     }
 
     /**
-     * Assigns a weight to the **Number of Clicks for Page Views (NCPV)** metric.
-     * @returns A weight dynamically computed based on the selected goals; otherwise, 0.4.
-     * @see {@link NCPVMetric}
+     * Computes the value for **Average Visits per User (NoVu)**.
+     * 
+     * It initializes the user-to-visitCount map.
+     * Then, it populates this map using the provided telemetry.
+     * Then, it uses the map to compute the total number of visits for all users.
+     * Afterwards, it computes the number of users using the `NoU` metric.
+     * Finally, it uses the total number of visits and number of users to compute NoVu.
+     * 
+     * @param telemetryData An array of telemetry data objects to analyze.
+     * @returns The average number of visits per user.
      */
-    assignWeight(): number {
-        let weight = 0.4; // default weight
-        // If selected goals includes "Popularity"
-        if (this.selectedGoals.some(goal => goal.name === "Popularity")) {
-            const popularity = this.selectedGoals.find(goal => goal.name === "Popularity");
-            if (popularity)
-                weight = (popularity.weight || 1) / (popularity.metrics.length || 1);
+    computeValue(telemetryData: any[]): number {
+        // Initialize the user-to-visitCount map
+        const userVisits: { [userId: string]: Set<string> } = {};
+
+        // Populate the map from the telemetry data
+        telemetryData.forEach(data => {
+            const userId = data.attributes["app.user.id"];
+            const visitId = data.attributes["app.visit.id"];
+            if (userId && visitId) {
+                if (!userVisits[userId]) {
+                    userVisits[userId] = new Set();
+                }
+                userVisits[userId].add(visitId);
+            }
+        });
+
+        // Compute the total number of visits for all users from the map
+        let totalVisits = 0;
+        Object.values(userVisits).forEach(visitSet => {
+            totalVisits += visitSet.size;
+        });
+
+        // Compute the number of users from the NoU metric by passing it the telemetry data
+        const nbUsers = this.children["NoU"].computeValue(telemetryData);
+
+        if (nbUsers) {
+            // Use the total number of visits and the NoU to compute the value of NoVu
+            this._value = totalVisits / nbUsers;
         }
 
-        return weight;
+        return this._value;
+    }
+
+    /**
+     * Resets the metric value to its initial state.
+     */
+    resetValue(): void {
+        super.resetValue();
+        this._value = 0;
+    }
+
+    /**
+     * Returns a new interpreter for this metric for the provided goal.
+     * @param goal - The goal in the context of which the metric is interpreted.
+     * @returns - An instance of `NoVuInterpreter` to interpret this metric for the provided goal.
+     * @see {@link NoVuInterpreter}.
+     */
+    getInterpter(goal: Goal): NoVuInterpreter {
+        return new NoVuInterpreter(this, goal);
     }
 }
 
 /**
- * This class is responsible for mapping the `Interaction Capability -> User Engagement -> Popularity`
- * goal to its corresponding metrics:
- * 1. **Number of Unique Users (NUU)**;
- * 2. **Number of Visits (NoV)**;
- * 3. **Number of Clicks for Page Views (NCPV)**.
+ * Interpreter for the **Average Visits per User (NoVu)** metric.
+ *
+ * Normalizes the computed value using a benchmark (10 visits/user, by default)
+ * and assigns a weight (0.4, by default) based on the selected goals.
  * 
- * @see classes {@link NUUMetric}, {@link NoVMetric}, and {@link NCPVMetric}
+ * @see {@link NoVuMetric}
  */
-export class PopularityMapper implements GoalMapper {
+export class NoVuInterpreter extends MetricInterpreter {
+    constructor(
+        metric: NoVuMetric,
+        goal: Goal,
+        // Assume a maximum of 10 visits/user
+        // as an initial benchmark for NoVu's interpretation
+        initialMaxValue: number = 10,
+        // Assume a default weight of 0.4
+        baseWeight = 0.4
+    ) {
+        super(metric, goal, initialMaxValue, baseWeight);
+    }
+}
+
+/**
+ * Metric: **Average Sessions per User (NoSu)**
+ *
+ * Computes the average number of sessions per user.
+ * It groups telemetry data by user, counts unique sessions per user, and averages these values.
+ *
+ * **Unit:** `sessions/user`
+ * **Acronym:** `NoSu`
+ * **Required Telemetry:** `TRACING`
+ * 
+ * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
+ * @requires {@link TelemetryType}
+ * @see {@link NoUMetric}
+ */
+export class NoSuMetric extends CompositeMetric {
+    _value: number = 0;
+
+    constructor() {
+        super(
+            "Average Sessions per User",
+            "Average number of sessions per user",
+            "sessions/user",
+            "NoSu",
+            [TelemetryType.TRACING] // The metric requires tracing telemetry
+        );
+        // Use NoUMetric as a child to obtain the unique user count.
+        this.children = {
+            "NoU": new NoUMetric()
+        };
+    }
 
     /**
-     * Maps the `Interaction Capability -> User Engagement -> Popularity` goal to its metrics (NUU, NoV, and NCPV).
+     * Computes the value for **Average Sessions per User (NoSu)**.
+     * 
+     * It initializes the user-to-sessionCount map.
+     * Then, it populates this map using the provided telemetry.
+     * Then, it uses the map to compute the total number of sessions for all users.
+     * Afterwards, it computes the number of users using the `NoU` metric.
+     * Finally, it uses the total number of sessions and number of users to compute NoSu.
+     * 
+     * @param telemetryData An array of telemetry data objects to analyze.
+     * @returns The average number of sessions per user.
+     */
+    computeValue(telemetryData: any[]): number {
+        // Initialize the user-to-sessionCount map
+        const userSessions: { [userId: string]: Set<string> } = {};
+
+        // Populate the map from the telemetry data
+        telemetryData.forEach(data => {
+            const userId = data.attributes["app.user.id"];
+            const sessionId = data.attributes["app.session.id"];
+            if (userId && sessionId) {
+                if (!userSessions[userId]) {
+                    userSessions[userId] = new Set();
+                }
+                userSessions[userId].add(sessionId);
+            }
+        });
+
+        // Compute the total number of sessions for all users from the map
+        let totalSessions = 0;
+        Object.values(userSessions).forEach(sessionSet => {
+            totalSessions += sessionSet.size;
+        });
+
+        // Compute the number of users from the NoU metric by passing it the telemetry data
+        const nbUsers = this.children["NoU"].computeValue(telemetryData);
+
+        if (nbUsers) {
+            // Use the total number of sessions and the NoU to compute the value of NoSu
+            this._value = totalSessions / nbUsers;
+        }
+
+        return this._value;
+    }
+
+    /**
+     * Resets the metric value to its initial state.
+     */
+    resetValue(): void {
+        super.resetValue();
+        this._value = 0;
+    }
+
+    /**
+     * Returns a new interpreter for this metric for the provided goal.
+     * @param goal - The goal in the context of which the metric is interpreted.
+     * @returns - An instance of `NoSuInterpreter` to interpret this metric for the provided goal.
+     * @see {@link NoSuInterpreter}.
+     */
+    getInterpter(goal: Goal): NoSuInterpreter {
+        return new NoSuInterpreter(this, goal);
+    }
+}
+
+/**
+ * Interpreter for the **Average Sessions per User (NoSu)** metric.
+ *
+ * Normalizes the computed value using a benchmark (20 sessions/user, by default)
+ * and assigns a weight (0.4, by default) based on the selected goals.
+ * 
+ * @see {@link NoSuMetric}
+ */
+export class NoSuInterpreter extends MetricInterpreter {
+    constructor(
+        metric: NoSuMetric,
+        goal: Goal,
+        // Assume a maximum of 20 sessions/user
+        // as an initial benchmark for NoSu's interpretation
+        initialMaxValue: number = 20,
+        // Assume a default weight of 0.4
+        baseWeight = 0.4
+    ) {
+        super(metric, goal, initialMaxValue, baseWeight);
+    }
+}
+
+/**
+ * Metric: **Average Sessions per Visit (NoSv)**
+ *
+ * Computes the average number of sessions per visit.
+ * It groups telemetry data by visit, counts unique sessions per visit, and averages these values.
+ *
+ * **Unit:** `sessions/visit`
+ * **Acronym:** `NoSv`
+ * **Required Telemetry:** `TRACING`
+ * 
+ * @requires {@link OpenTelemetryWebTracingInstrumentationAdapter}
+ * @requires {@link TelemetryType}
+ * @see {@link NoVMetric}
+ */
+export class NoSvMetric extends CompositeMetric {
+    _value: number = 0;
+
+    constructor() {
+        super(
+            "Average Sessions per Visit",
+            "Average number of sessions per visit",
+            "sessions/visit",
+            "NoSv",
+            [TelemetryType.TRACING] // The metric requires tracing telemetry
+        );
+        // Use NoVMetric as a child to obtain the unique visit count.
+        this.children = {
+            "NoV": new NoVMetric()
+        };
+    }
+
+    /**
+     * Computes the value for **Average Sessions per Visit (NoSv)**.
+     * 
+     * It initializes the visit-to-sessionCount map.
+     * Then, it populates this map using the provided telemetry.
+     * Then, it uses the map to compute the total number of sessions for all visits.
+     * Afterwards, it computes the number of visits using the `NoV` metric.
+     * Finally, it uses the total number of sessions and number of visits to compute NoSv.
+     * 
+     * @param telemetryData An array of telemetry data objects to analyze.
+     * @returns The average number of sessions per visit.
+     */
+    computeValue(telemetryData: any[]): number {
+        // Initialize the visit-to-sessionCount map
+        const visitSessions: { [userId: string]: Set<string> } = {};
+
+        // Populate the map from the telemetry data
+        telemetryData.forEach(data => {
+            const visitId = data.attributes["app.visit.id"];
+            const sessionId = data.attributes["app.session.id"];
+            if (visitId && sessionId) {
+                if (!visitSessions[visitId]) {
+                    visitSessions[visitId] = new Set();
+                }
+                visitSessions[visitId].add(sessionId);
+            }
+        });
+
+        // Compute the total number of sessions for all visits from the map
+        let totalSessions = 0;
+        Object.values(visitSessions).forEach(sessionSet => {
+            totalSessions += sessionSet.size;
+        });
+
+        // Compute the number of visits from the NoV metric by passing it the telemetry data
+        const nbVisits = this.children["NoV"].computeValue(telemetryData);
+
+        if (nbVisits) {
+            // Use the total number of sessions and the NoV to compute the value of NoSv
+            this._value = totalSessions / nbVisits;
+        }
+
+        return this._value;
+    }
+
+    /**
+     * Resets the metric value to its initial state.
+     */
+    resetValue(): void {
+        super.resetValue();
+        this._value = 0;
+    }
+
+    /**
+     * Returns a new interpreter for this metric for the provided goal.
+     * @param goal - The goal in the context of which the metric is interpreted.
+     * @returns - An instance of `NoSvInterpreter` to interpret this metric for the provided goal.
+     * @see {@link NoSvInterpreter}.
+     */
+    getInterpter(goal: Goal): NoSvInterpreter {
+        return new NoSvInterpreter(this, goal);
+    }
+}
+
+/**
+ * Interpreter for the **Average Sessions per Visit (NoSv)** metric.
+ *
+ * Normalizes the computed value using a benchmark (10 sessions/visit, by default)
+ * and assigns a weight (0.4, by default) based on the selected goals.
+ * 
+ * @see {@link NoSvMetric}
+ */
+export class NoSvInterpreter extends MetricInterpreter {
+    constructor(
+        metric: NoSvMetric,
+        goal: Goal,
+        // Assume a maximum of 10 sessions/visit
+        // as an initial benchmark for NoSv's interpretation
+        initialMaxValue: number = 10,
+        // Assume a default weight of 0.4
+        baseWeight = 0.4
+    ) {
+        super(metric, goal, initialMaxValue, baseWeight);
+    }
+}
+
+/**
+ * This class is responsible for mapping `Interaction Capability -> User Engagement -> Popularity`
+ * goal to its corresponding metrics:
+ * 
+ * 1. **Number of Users (NoU)**;
+ * 2. **Number of Visits (NoV)**;
+ * 3. **Number of Sessions (NoS)**;
+ * 4. **Average Visits per User (NoVu)**;
+ * 5. **Average Sessions per User (NoSu)**;
+ * 6. **Average Sessions per Visit (NoSv)**.
+ * 
+ * @see classes {@link NoUMetric}, {@link NoVMetric}, {@link NoSMetric},
+ * {@link NoVuMetric}, {@link NoSuMetric}, and {@link NoSvMetric}
+ */
+export class PopularityMapper implements GoalMapper {
+    metrics: Metric[] = [];
+
+    constructor(public appMetadata: ApplicationMetadata) {
+        this.prepareMetrics();
+    }
+
+    private prepareMetrics() {
+        if (this.appMetadata.type.toLowerCase().includes('frontend')) {
+            this.metrics.push(
+                new NoUMetric(), // NoU
+                new NoVMetric(), // NoV
+                new NoSMetric(), // NoS
+                new NoVuMetric(), // NoVu
+                new NoSuMetric(), // NoSu
+                new NoSvMetric(), // NoSv
+            );
+        }
+    }
+
+    /**
+     * Maps the `Interaction Capability -> User Engagement -> Popularity` goal to its metrics:
+     * 
+     * 1. **Number of Users (NoU)**;
+     * 2. **Number of Visits (NoV)**;
+     * 3. **Number of Sessions (NoS)**;
+     * 4. **Average Visits per User (NoVu)**;
+     * 5. **Average Sessions per User (NoSu)**;
+     * 6. **Average Sessions per Visit (NoSv)**.
+     * 
      * @param goal The goal to map.
      * @throws An error if the goal is not "Popularity".
-     * @see classes {@link NUUMetric}, {@link NoVMetric}, and {@link NCPVMetric}
+     * @see classes {@link NoUMetric}, {@link NoVMetric}, {@link NoSMetric},
+     * {@link NoVuMetric}, {@link NoSuMetric}, and {@link NoSvMetric}
      */
     map(goal: Goal) {
         if (goal.name !== "Popularity")
             throw new Error(`Popularity Mapper: Incorrect Mapper for Goal ${goal.name}`);
 
         // Set overall weight for "Popularity"
-        goal.weight = 0.4;
-        goal.metrics.push(
-            new NUUMetric(),
-            new NoVMetric(),
-            new NCPVMetric()
-        );
+        goal.weight = 0.4; // @TODO remove this later when the weight assignment is finalized on the frontend
+
+        // Map the metrics to their goal
+        this.metrics.forEach(metric => goal.metrics.add(metric));
     }
 }

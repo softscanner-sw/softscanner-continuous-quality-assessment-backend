@@ -101,4 +101,27 @@ export class MetricsComputer {
 
         return telemetryData;
     }
+
+    /**
+     * Returns the number of unique values for a given attribute key
+     * from the telemetry data.
+     * @param telemetryData - Array of telemetry data objects.
+     * @param attributeKey - The key to extract (e.g., "app.user.id").
+     * @returns The count of unique values.
+     */
+    static uniqueCount(telemetryData: any[], attributeKey: string): number {
+        // Initializes the set of unique values
+        const set = new Set<string>();
+
+        // Populates the set
+        telemetryData.forEach(data => {
+            const value = data.attributes[attributeKey];
+            if (value) {
+                set.add(value);
+            }
+        });
+
+        // returns the size of the set of values
+        return set.size;
+    }
 }

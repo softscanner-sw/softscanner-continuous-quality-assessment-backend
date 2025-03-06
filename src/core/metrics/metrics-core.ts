@@ -89,12 +89,26 @@ export abstract class Metric {
         this._value = undefined;
     }
 
+    abstract isComposite(): boolean;
+
+    /**
+     * Abstract method to accept a visitor for this metric
+     * @param visitor - The visitor implementing the `MetricVisitor` interface.
+     */
+    abstract accept(visitor: MetricVisitor): any;
+
     /**
      * Abstract method to compute the value of the metric.
      * This method must be implemented by subclasses.
      * @param data - Optional telemetry data used to compute the metric.
      */
     abstract computeValue(data?: any[]): any;
+
+    /**
+     * Abstract method to return a proper interpreter for the metric for the provided goal
+     * @param goal - The goal in the context of which the metric is interpreted.
+     */
+    abstract getInterpter(goal: Goal): any;
 }
 
 /**
@@ -110,9 +124,47 @@ export type MetricHistoryEntry = {
  */
 export type MetricHistory = MetricHistoryEntry[]
 
+
+export abstract class LeafMetric extends Metric {
+    isComposite(): boolean {
+        return false;
+    }
+
+    accept(visitor: MetricVisitor): any {
+        return visitor.visitLeafMetric(this);
+    }
+}
+
+export abstract class CompositeMetric extends Metric {
+    /**
+     * Children metrics that are used in the computation
+     * of this composite metric
+     */
+    children: { [key: string]: Metric } = {};
+
+    isComposite(): boolean {
+        return true;
+    }
+
+    accept(visitor: MetricVisitor): any {
+        return visitor.visitCompositeMetric(this);
+    }
+}
+
 /**
- * Interface for mapping goals to metrics.
+ * Interface for a visitor that can traverse a hierarchy of metrics (composite and leaf metrics).
+ * This interface follows the Visitor design pattern.
  */
-export interface GoalMapper {
-    map(goal: Goal): any
+export interface MetricVisitor {
+    /**
+     * Visits a composite metric and maps it to its associated metrics.
+     * @param metric - The composite metric being visited.
+     */
+    visitCompositeMetric(metric: CompositeMetric): any;
+
+    /**
+     * Visits a leaf metric and maps it to its associated metrics.
+     * @param metric - The leaf metric being visited.
+     */
+    visitLeafMetric(metric: LeafMetric): any;
 }

@@ -1,11 +1,6 @@
-import { CDPVAInterpreter, CDPVAMetric, DTAInterpreter, DTAMetric, UIFInterpreter, UIFMetric } from "../../modules/metrics/interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
-import { ADInterpreter, ADMetric, DTLInterpreter, DTLMetric, RRInterpreter, RRMetric } from "../../modules/metrics/interaction-capability/user-engagement/loyalty/user-engagement-loyalty-metrics";
-import { NCPVInterpreter, NCPVMetric, NoVInterpreter, NoVMetric, NUUInterpreter, NUUMetric } from "../../modules/metrics/interaction-capability/user-engagement/popularity/user-engagement-popularity-metrics";
-import { ARTInterpreter, ARTMetric, TPUTInterpreter, TPUTMetric } from "../../modules/metrics/performance-efficiency/time-behavior/time-behavior-metrics";
 import { ApplicationMetadata } from "../application/application-metadata";
 import { Goal } from "../goals/goals";
 import { Metric } from "../metrics/metrics-core";
-import { MetricInterpreter } from "../metrics/metrics-interpreters";
 import { AssessmentStrategy, WeightedSumAssessmentStrategy } from "./assessment-strategy";
 
 /**
@@ -37,15 +32,6 @@ export class Assessment {
     addAssessment(metric: string, value: number, weight: number, timestamp: string) {
         this.assessments.push({ metric, value, weight, timestamp });
     }
-
-    /**
-   * Computes the final score for the goal using a given assessment strategy.
-   * @param strategy - The assessment strategy used to compute the global score.
-   */
-    computeFinalScore(strategy: AssessmentStrategy) {
-        this.globalScore = strategy.aggregate(this.assessments);
-        this.timestamp = new Date().toISOString(); // Record the time of final score computation
-    }
 }
 
 /**
@@ -71,79 +57,32 @@ export interface AssessmentContext {
  */
 export class AssessmentEngine {
     /**
-   * Retrieves the appropriate metric interpreter for a given metric.
-   * @param metric - The metric to be interpreted.
-   * @param selectedGoals - The list of goals being assessed.
-   * @returns An instance of the corresponding metric interpreter, or null if not found.
-   */
-    private getMetricInterpreter(metric: Metric, selectedGoals: Goal[]): MetricInterpreter | null {
-        switch (metric.acronym.toLowerCase()) {
-            /* USER ENGAGEMENT Metrics */
-            /* ======================= */
-            /* Activity Metrics */
-            case "uif":
-                return new UIFInterpreter(metric as UIFMetric, selectedGoals);
-            case "cdpva":
-                return new CDPVAInterpreter(metric as CDPVAMetric, selectedGoals);
-            case "dta":
-                return new DTAInterpreter(metric as DTAMetric, selectedGoals);
-            /* Loyalty Metrics */
-            case "ad":
-                return new ADInterpreter(metric as ADMetric, selectedGoals);
-            case "rr":
-                return new RRInterpreter(metric as RRMetric, selectedGoals);
-            case "dtl":
-                return new DTLInterpreter(metric as DTLMetric, selectedGoals);
-            /* Popularity Metrics */
-            case "nuu":
-                return new NUUInterpreter(metric as NUUMetric, selectedGoals);
-            case "nov":
-                return new NoVInterpreter(metric as NoVMetric, selectedGoals);
-            case "ncpv":
-                return new NCPVInterpreter(metric as NCPVMetric, selectedGoals);
-
-            /* PERFORMANCE EFFICIENCY Metrics */
-            /* ============================== */
-            /* Time Behavior Metrics */
-            case "art":
-                return new ARTInterpreter(metric as ARTMetric, selectedGoals);
-            case "tput":
-                return new TPUTInterpreter(metric as TPUTMetric, selectedGoals);
-            default:
-                console.warn(`Assessment Engine: No interpreter available for metric: ${metric.name}`);
-                return null;
-        }
-    }
-
-    /**
    * Selects an assessment strategy based on the specified goals.
    * @param goals - The goals being assessed.
    * @returns An instance of the selected assessment strategy.
    */
-    private getAssessmentStrategy(goals: Goal[]): AssessmentStrategy {
-        // Dynamically select an assessment strategy (example logic)
-        if (goals.some(goal => goal.name === "User Engagement")) {
-            return new WeightedSumAssessmentStrategy();
-        }
-        // Add other strategies as needed
-        return new WeightedSumAssessmentStrategy(); // Default
+    private getAssessmentStrategy(assessmentContext: AssessmentContext, assessment: Assessment): AssessmentStrategy {
+        // // Dynamically select an assessment strategy (example logic)
+        // if (assessmentContext.selectedGoals.some(goal => goal.name === "User Engagement")) {
+        //     return new WeightedSumAssessmentStrategy(assessment);
+        // }
+
+        return new WeightedSumAssessmentStrategy(assessment); // Default
     }
 
     /**
    * Assesses a list of quality goals based on the computed metrics.
-   * @param goals - The goals to be assessed.
+   * @param assessmentContext - The assessment context containing application metadata and selected goals.
    * @param computedMetrics - The metrics computed from telemetry data.
    * @returns A list of assessments for each goal.
    */
-    assessGoals(goals: Goal[], computedMetrics: Metric[]): Assessment[] {
-        const strategy = this.getAssessmentStrategy(goals);
-
-        return goals.map(goal => {
+    assess(assessmentContext: AssessmentContext, computedMetrics: Metric[]): Assessment[] {
+        return assessmentContext.selectedGoals.map(goal => {
             const assessment = new Assessment(goal);
-            const goalMetrics = computedMetrics.filter(m => goal.metrics.map(metric => metric.acronym).includes(m.acronym));
+            const goalMetrics = computedMetrics.filter(m => Array.from(goal.metrics).map(metric => metric.acronym).includes(m.acronym));
 
             goalMetrics.forEach(metric => {
-                const interpreter = this.getMetricInterpreter(metric, goals);
+                const interpreter = metric.getInterpter(goal);
                 if (interpreter) {
                     const value = interpreter.interpret();
                     const weight = interpreter.assignWeight();
@@ -153,7 +92,13 @@ export class AssessmentEngine {
                 }
             });
 
-            assessment.computeFinalScore(strategy);
+            // Select the proper assessment strategy for the goal's assessment
+            const strategy = this.getAssessmentStrategy(assessmentContext, assessment);
+
+            // Compute the final assessment score for the goal and record the timestamp of computation
+            assessment.globalScore = strategy.aggregate(assessmentContext);
+            assessment.timestamp = new Date().toISOString();
+
             return assessment;
         });
     }

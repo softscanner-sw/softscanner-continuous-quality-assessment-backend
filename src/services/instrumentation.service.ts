@@ -42,6 +42,7 @@ export class InstrumentationService implements IProgressTrackable {
 
         // Extract the required metrics from SSQMM based on the selected goals
         const modelService = new QualityModelService();
+        modelService.buildMap(appMetadata);
         const metrics = modelService.extractRequiredMetrics(modelService.ssqmm.goals, selectedGoals);
 
         console.log('Instrumentation service: Mapped Metrics:', metrics.map(metric => metric.name));

@@ -68,10 +68,27 @@ app.post('/api/assessment', async (req: Request, res: Response) => {
         metadata.url
     );
 
+    // Build goal-> metric mappings for the provided metadata
+    modelService.buildMap(appMetadata);
+
+    // @TODO reomve later and replace by code below
     // Retrieve corresponding Goal instances based on the selected goal names
     const goals = selectedGoals.map((goalName: string) =>
         modelService.ssqmm.qualityModel.getGoalByName(goalName)
     ).filter(Boolean) as Goal[];
+
+    // @TODO uncomment later
+    // Retrieve corresponding Goal instances from the quality model and update their weights
+    // Assume selectedGoals is an array of objects: { name: string, weight: number }
+    // const goals = selectedGoals.map((goalData: any) => {
+    //     const goal = modelService.ssqmm.qualityModel.getGoalByName(goalData.name);
+    //     if (goal) {
+    //         // Update the goal's weight with the user-provided value.
+    //         // For composite goals, you might later enforce that the sum of sub-goal weights is 1.
+    //         goal.weight = goalData.weight !== undefined ? goalData.weight : goal.weight;
+    //     }
+    //     return goal;
+    // }).filter(Boolean) as Goal[];
 
     // Log received data
     console.log('Server: Received Application Metadata:', appMetadata);
@@ -178,7 +195,7 @@ app.get('/api/assessments', (req: Request, res: Response) => {
                 description: goal.description,
                 weight: goal.weight,
                 parent: goal.parent,
-                metrics: goal.metrics.map(metric => ({
+                metrics: Array.from(goal.metrics).map(metric => ({
                     name: metric.name,
                     acronym: metric.acronym,
                     description: metric.description,

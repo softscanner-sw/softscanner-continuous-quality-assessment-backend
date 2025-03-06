@@ -13,7 +13,7 @@ import { OpenTelemetryTracingInstrumentationStrategy } from "./tracing/opentelem
 import { OpenTelemetryNodeTracingInstrumentationAdapter, OpenTelemetryTracingInstrumentationAdapter, OpenTelemetryWebTracingInstrumentationAdapter } from "./tracing/opentelemetry-instrumentation-tracing-adapters";
 import { OpenTelemetryTracingInstrumentationConfig } from "./tracing/opentelemetry-instrumentation-tracing-core";
 import { OpenTelemetryMetadataSpanProcessingInstrumentationStrategy } from "./tracing/processing/opentelemetry-instrumentation-tracing-app-metadata";
-import { OpenTelemetryPageDataInstrumentationStrategy } from "./tracing/processing/opentelemetry-instrumentation-tracing-page-data";
+import { OpenTelemetryUserIdentityInstrumentationStrategy } from "./tracing/processing/opentelemetry-instrumentation-tracing-user-identity";
 
 /**
  * Class responsible for generating OpenTelemetry instrumentation files and bundles for an application.
@@ -46,13 +46,13 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
     }
 
     /**
-     * Determines whether utility instrumentation files (e.g., for page data, app metadata) are needed.
+     * Determines whether utility instrumentation files (e.g., for user identity data, app metadata) are needed.
      */
     protected requiresUtilityInstrumentationFiles(): boolean {
         let requires = false;
         if (this.requiresTelemetryType(TelemetryType.TRACING)) {
             let telemetryConfig = this.telemetryConfig as OpenTelemetryTracingInstrumentationConfig;
-            requires = telemetryConfig.automaticTracingOptions.pageData
+            requires = telemetryConfig.automaticTracingOptions.userIdData
                 || telemetryConfig!!.automaticTracingOptions.appMetadata
         }
 
@@ -99,7 +99,7 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
 
     /**
      * Generates the necessary instrumentation files for OpenTelemetry tracing.
-     * It handles tracing, page data, metadata processing, and WebSocket-based exportation strategies.
+     * It handles tracing, user identity data, metadata processing, and WebSocket-based exportation strategies.
      */
     public async generateInstrumentationFiles(): Promise<void> {
         // Preparing the application metadata which will be attached to every exported telemetry span
@@ -117,9 +117,9 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
                 this.instrumentations.push(...this.instrumentationStrategy.generateInstrumentationFiles());
             }
 
-            // Check if page data is required and use the corresponding instrumentation strategy
-            if (tracingConfig.automaticTracingOptions.pageData) {
-                this.instrumentationStrategy = new OpenTelemetryPageDataInstrumentationStrategy(tracingConfig, appInstrumentationMetadata.appMetadata);
+            // Check if user identity data is required and use the corresponding instrumentation strategy
+            if (tracingConfig.automaticTracingOptions.userIdData) {
+                this.instrumentationStrategy = new OpenTelemetryUserIdentityInstrumentationStrategy(tracingConfig, appInstrumentationMetadata.appMetadata);
                 this.instrumentations.push(...this.instrumentationStrategy.generateInstrumentationFiles());
             }
 
@@ -180,7 +180,7 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
      * i.e., one for tracing, one for logging, and one for metrics) under a `./<application-name>/main/` folder
      * 
      * Besides these main instrumentation files, any extra instrumentation file
-     * e.g., for page data by extending the `SpanProcessor` API)
+     * e.g., for user identity data by extending the `SpanProcessor` API)
      * is saved in a `./<application-name>/utils/` folder
      * 
      * Finally, all main instrumentation files should be imported into an `./<application-name>index.ts`

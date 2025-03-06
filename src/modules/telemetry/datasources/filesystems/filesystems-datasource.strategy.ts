@@ -110,7 +110,7 @@ export class FileTelemetryDataSource extends TelemetryDataSource {
                 name: assessment.goal.name,
                 description: assessment.goal.description,
                 weight: assessment.goal.weight,
-                metrics: assessment.goal.metrics.map(metric => ({
+                metrics: Array.from(assessment.goal.metrics).map(metric => ({
                     name: metric.name,
                     acronym: metric.acronym,
                     description: metric.description,
