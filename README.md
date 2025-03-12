@@ -25,6 +25,11 @@ Moreover, specific implementations are created for the injection of instrumentat
 - **💾 Telemetry Collection and Storage** → Supports MongoDB and filesystem-based storage for telemetry data.  
 - **🗂️ Modular and Extensible** → Easily add new goals, metrics, and telemetry providers.
 
+## Demo Video
+
+Watch our demonstration video on YouTube:  
+[SoftScanner: Continuous Quality Assessment of an Angular Web Application](https://www.youtube.com/watch?v=uXJXr-pY5lk)
+
 ---
 
 ## 📁 Project Structure
