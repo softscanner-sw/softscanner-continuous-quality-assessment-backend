@@ -252,7 +252,7 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
 
         exportDestinations.forEach(exportDestination => {
             let exporterName = this.getTelemetryExporterVariableName(exportDestination);
-            let spanProcessor = `new SimpleSpanProcessor(${exporterName})`;  // default (batch processing to be added later)
+            let spanProcessor = `new BatchSpanProcessor(${exporterName})`; 
 
             // Check for metadata span processing
             if (automaticTracingOptions.appMetadata) {

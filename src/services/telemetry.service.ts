@@ -36,7 +36,7 @@ export class TelemetryService implements IProgressTrackable {
         this.progressTracker.notifyProgress('Telemetry service: Generating configuration file for telemetry collector...');
 
         // Generate the configuration for the telemetry collector
-        const collectorConfig = this.generateTelemetryCollectorConfiguration(appInstrumentationMetadata, TelemetryStorageEndpointType.FILE);
+        const collectorConfig = this.generateTelemetryCollectorConfiguration(appInstrumentationMetadata, TelemetryStorageEndpointType.DATABASE);
 
         // Set up and start the WebSocket telemetry collector using the generated configuration
         const collector = new WebSocketTelemetryCollector(collectorConfig, collectorConfig.port);

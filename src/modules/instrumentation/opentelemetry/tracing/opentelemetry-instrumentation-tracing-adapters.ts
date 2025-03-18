@@ -83,7 +83,7 @@ export class OpenTelemetryWebTracingInstrumentationAdapter extends OpenTelemetry
         ${InstrumentationGenerator.generateImportFromStatement('ZoneContextManager', '@opentelemetry/context-zone')}
         ${InstrumentationGenerator.generateImportFromStatement('registerInstrumentations', '@opentelemetry/instrumentation')}
         ${InstrumentationGenerator.generateImportFromStatement('Resource', '@opentelemetry/resources')}
-        ${InstrumentationGenerator.generateImportFromStatement('SimpleSpanProcessor, WebTracerProvider', '@opentelemetry/sdk-trace-web')}
+        ${InstrumentationGenerator.generateImportFromStatement('BatchSpanProcessor, WebTracerProvider', '@opentelemetry/sdk-trace-web')}
         ${InstrumentationGenerator.generateImportFromStatement('SemanticResourceAttributes', '@opentelemetry/semantic-conventions')}
         `.trim();
 
@@ -189,7 +189,7 @@ export class OpenTelemetryNodeTracingInstrumentationAdapter extends OpenTelemetr
         ${InstrumentationGenerator.generateImportFromStatement('getNodeAutoInstrumentations', '@opentelemetry/auto-instrumentations-node')}
         ${InstrumentationGenerator.generateImportFromStatement('registerInstrumentations', '@opentelemetry/instrumentation')}
         ${InstrumentationGenerator.generateImportFromStatement('Resource', '@opentelemetry/resources')}
-        ${InstrumentationGenerator.generateImportFromStatement('SimpleSpanProcessor', '@opentelemetry/sdk-trace-base')}
+        ${InstrumentationGenerator.generateImportFromStatement('BatchSpanProcessor', '@opentelemetry/sdk-trace-base')}
         ${InstrumentationGenerator.generateImportFromStatement('NodeTracerProvider', '@opentelemetry/sdk-trace-node')}
         ${InstrumentationGenerator.generateImportFromStatement('SemanticResourceAttributes', '@opentelemetry/semantic-conventions')}
         `.trim();
