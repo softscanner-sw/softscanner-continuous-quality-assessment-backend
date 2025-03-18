@@ -25,10 +25,19 @@ Moreover, specific implementations are created for the injection of instrumentat
 - **💾 Telemetry Collection and Storage** → Supports MongoDB and filesystem-based storage for telemetry data.  
 - **🗂️ Modular and Extensible** → Easily add new goals, metrics, and telemetry providers.
 
-## Demo Video
+---
 
-Watch our demonstration video on YouTube:  
-[SoftScanner: Continuous Quality Assessment of an Angular Web Application](https://www.youtube.com/watch?v=uXJXr-pY5lk)
+## Demo & Tutorial Videos
+### SoftScanner Platform Videos
+- [Installation of SoftScanner](https://youtu.be/gejrlsAMwnw)
+- [Installation and Overview of an Angular/Node.js Test Application](https://youtu.be/pnItMPW2JiE)
+- [Using SoftScanner with an Angular Web Application for User Engagement](https://youtu.be/jpTOXk8TpBE)
+
+### Continuous Quality Assessment for Web Applications (CQAWA) Challenge Videos
+- [CQAWA Challenge 1: Reconciling Diverse Stakeholder Quality Perspectives](https://youtu.be/VmfXqgDhzWE)
+- [CQAWA Challenge 2: Bridging the Gap Between Conceptual Quality Goals and Technical Observable Data](https://youtu.be/7OCJfO5lQ64)
+- [CQAWA Challenge 3: Minimizing Performance Overhead in Data Collection](https://youtu.be/Zsnhsx9Lc1M)
+- [CQAWA Challenge 4: Minimizing Codebase Modifications for Instrumentation](https://youtu.be/bLY8h29H934)
 
 ---
 
