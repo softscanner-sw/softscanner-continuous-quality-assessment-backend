@@ -5,7 +5,6 @@ import { MetricInterpreter } from "../../../../core/metrics/metrics-interpreters
 import { TelemetryType } from "../../../../core/telemetry/telemetry";
 import { Utils } from "../../../../core/util/util-core";
 import { OpenTelemetryNodeTracingInstrumentationAdapter } from "../../../instrumentation/opentelemetry/tracing/opentelemetry-instrumentation-tracing-adapters";
-import { IpMetric } from "../../non-repudiation/ip/non-repudiation-ip-metric";
 
 /**
  * Metric: **Number of HTTP Requests (NHR)**
@@ -678,7 +677,6 @@ export class TimeBehaviorMapper implements GoalMapper {
                 new P95RTMetric(), // P95RT
                 new RTVarMetric(), // RTVar
                 new LPIMetric(), // LPI
-                new IpMetric(),
                 new TPUTMetric(), // TPUT
             );
         }

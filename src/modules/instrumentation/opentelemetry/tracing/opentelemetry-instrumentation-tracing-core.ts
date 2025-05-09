@@ -87,19 +87,19 @@ export class OpenTelemetryWebAutomaticTracingOptions extends OpenTelemetryAutoma
          * Whether to trace document loading and resource fetching.
          * Default: false
          */
-        documentLoad = false,
+        documentLoad = true,
 
         /**
          * Whether to trace requests made using the Fetch API.
          * Default: true
          */
-        fetchApi = false,
+        fetchApi = true,
 
         /**
          * Whether to trace AJAX requests (XMLHttpRequest).
          * Default: true
          */
-        ajaxRequests = false,
+        ajaxRequests = true,
     }) {
         super({ appMetadata, userIdData });
         this.userInteractions = userInteractions;

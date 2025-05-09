@@ -63,7 +63,6 @@ export class OpenTelemetryUserIdentityInstrumentationStrategy extends OpenTeleme
         ${InstrumentationGenerator.generateImportFromStatement('Context', '@opentelemetry/api')}
         ${InstrumentationGenerator.generateImportFromStatement('Span, SpanProcessor', this.application.type.toLowerCase().includes('frontend') ? '@opentelemetry/sdk-trace-web' : '@opentelemetry/sdk-trace-base')}
         ${InstrumentationGenerator.generateImportFromStatement('v4 as uuidv4', 'uuid')}
-        ${InstrumentationGenerator.generateImportFromStatement('networkInterfaces, loadavg, uptime, cpus', 'os')}
 
         `.trim();
     }
@@ -93,14 +92,7 @@ export class OpenTelemetryUserIdentityInstrumentationStrategy extends OpenTeleme
             private static readonly VISIT_ID_KEY = 'app.visit.id'; // key for visit IDs
             private static readonly VISIT_TIMESTAMP_KEY = "app.visit.timestamp"; // key for visit timestamps
             private static readonly VISIT_TIMEOUT_MS = 30 * 60 * 1000; // visit timeout (30 minutes)
-            private static readonly MEMORY_USE = "app.memory";
-            private static readonly CPU_USAGE_METRIC = "app.cpu.usage"; // Utilisation du CPU
-            private static readonly NETWORK_INTERFACES_METRIC = "app.network.interfaces"; // Interfaces réseau
-            private static readonly FREE_MEMORY_METRIC = "app.memory.free"; // Mémoire libre
-            private static readonly SYSTEM_UPTIME_METRIC = "app.system.uptime"; // Temps d'activité du système
-            private static readonly LOAD_AVERAGE_METRIC = "app.system.loadavg"; // Moyenne de charge du système
-            private static readonly CORE_METRIC = "app.system.core"; // Moyenne de charge du système
-
+           
 
             private _nextProcessor: SpanProcessor;
             constructor(nextProcessor: SpanProcessor) {
@@ -117,13 +109,6 @@ export class OpenTelemetryUserIdentityInstrumentationStrategy extends OpenTeleme
                 span.setAttribute(UserIdentitySpanProcessor.USER_ID_KEY, this.getOrGenerateUserId());
                 span.setAttribute(UserIdentitySpanProcessor.SESSION_ID_KEY, this.getOrGenerateSessionId());
                 span.setAttribute(UserIdentitySpanProcessor.VISIT_ID_KEY, this.getOrGenerateVisitId());
-                span.setAttribute(UserIdentitySpanProcessor.MEMORY_USE, this.getUsedMemoryInMB());
-                span.setAttribute(UserIdentitySpanProcessor.CPU_USAGE_METRIC, this.getCpuUsage());
-                span.setAttribute(UserIdentitySpanProcessor.NETWORK_INTERFACES_METRIC, this.getNetworkInterfaces());
-                span.setAttribute(UserIdentitySpanProcessor.FREE_MEMORY_METRIC, this.getFreeMemoryPercentage());
-                span.setAttribute(UserIdentitySpanProcessor.SYSTEM_UPTIME_METRIC, this.getSystemUptime());
-                span.setAttribute(UserIdentitySpanProcessor.LOAD_AVERAGE_METRIC, this.getLoadAverage());
-                span.setAttribute(UserIdentitySpanProcessor.CORE_METRIC, this.getCore());
 
                 this._nextProcessor.onStart(span, parentContext);
             }
@@ -141,53 +126,6 @@ export class OpenTelemetryUserIdentityInstrumentationStrategy extends OpenTeleme
             }
 
             
-            private getUsedMemoryInMB(): number {
-               
-            if (typeof process !== 'undefined' && process.memoryUsage) {
-                    const usedMemory = process.memoryUsage().heapUsed / 1024 / 1024; // Convertir en Mo
-                    return parseFloat(usedMemory.toFixed(2)); // arrondi à 2 décimales
-                }
-
-                return 0;
-            }
-
-            private getCpuUsage(): number {
-                if (typeof process !== 'undefined' && process.cpuUsage) {
-                    const cpuUsage = process.cpuUsage();
-                    const cpuUsagePercent = (cpuUsage.user + cpuUsage.system) / (process.cpuUsage().system + process.cpuUsage().user) * 100;
-                    return parseFloat(cpuUsagePercent.toFixed(2));
-                }
-                return 0; // Si l'API n'est pas disponible, retourner 0 par défaut
-            }
-
-            private getNetworkInterfaces(): string {
-                const interfaces = networkInterfaces();
-                return JSON.stringify(interfaces); // Retourne les interfaces réseau sous forme de chaîne JSON
-            }
-
-            private getFreeMemoryPercentage(): number {
-                if (typeof process !== 'undefined' && process.memoryUsage) {
-                    const { heapTotal, heapUsed } = process.memoryUsage();
-                    const freePercentage = ((heapTotal - heapUsed) / heapTotal) * 100;
-                    return parseFloat(freePercentage.toFixed(2)); // Arrondi à 2 décimales
-                }
-                return 0;
-            }
-
-
-            private getSystemUptime(): number {
-                return parseFloat(uptime().toFixed(2)); // Temps d'activité en secondes
-            }
-
-            private getLoadAverage(): number[] {
-                return loadavg(); // Retourne un tableau des moyennes de charge sur 1, 5 et 15 minutes
-            }
-
-            private getCore(): number {
-                return cpus().length; // Retourne le nombre de cœurs du processeur
-            }
-
-    
             /**
              * Retrieves or stores generated user IDs (using UUIDv4) into localStorage if available.
              * Otherwise, uses a fallback global store.

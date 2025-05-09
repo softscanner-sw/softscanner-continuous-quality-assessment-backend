@@ -1,7 +1,10 @@
+import { EcoIndexMapper } from "../../modules/metrics/energy-consumption/ecoIndex/ecoIndex-metrics";
+import { PhysicalFootprintMapper } from "../../modules/metrics/energy-consumption/physical-footprint /physical-footprint-metrics";
 import { ActivityMapper } from "../../modules/metrics/interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
 import { LoyaltyMapper } from "../../modules/metrics/interaction-capability/user-engagement/loyalty/user-engagement-loyalty-metrics";
 import { PopularityMapper } from "../../modules/metrics/interaction-capability/user-engagement/popularity/user-engagement-popularity-metrics";
 import { RepudiationMapper } from "../../modules/metrics/non-repudiation/ip/non-repudiation-ip-metric";
+import { RessourceMapper } from "../../modules/metrics/performance-efficiency/resource-utilization/resource-utilization-metrics";
 import { TimeBehaviorMapper } from "../../modules/metrics/performance-efficiency/time-behavior/time-behavior-metrics";
 import { ApplicationMetadata } from "../application/application-metadata";
 import { CompositeGoal, GoalMapper, GoalVisitor, LeafGoal } from "../goals/goals";
@@ -45,10 +48,20 @@ export class MetricsMapper implements GoalVisitor {
             case "time behavior":
                 this._mapper = new TimeBehaviorMapper(this.appMetadata);
                 break;
+            case "ressource utilization":
+                this._mapper = new RessourceMapper(this.appMetadata);
+                break;
+            /* SECURITY Leaf Goals */
             case "non-repudiation":
                 this._mapper = new RepudiationMapper(this.appMetadata);
                 break;
-
+            /* ENERGY CONSUMPTION Leaf Goals */
+            case "ecoIndex":
+                this._mapper = new EcoIndexMapper(this.appMetadata);
+                break;
+            case "physical-footprint":
+                this._mapper = new PhysicalFootprintMapper(this.appMetadata);
+                break;
             default:
                 this._mapper = undefined;
         }
