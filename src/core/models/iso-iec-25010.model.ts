@@ -36,6 +36,7 @@ export class ISOIEC25010 extends QualityModel {
         this.buildSecurityCharacteristics(); // Security
         this.buildFlexibilityCharacteristics(); // Flexibility
         this.buildSafetyCharacteristics(); // Safety
+        this.buildEnergyConsumptionCharacteristics() // Energy consumption
     }
 
     /**
@@ -276,4 +277,38 @@ export class ISOIEC25010 extends QualityModel {
         const safeIntegration = new LeafGoal('Safe Integration', "The capability of a software to maintain safety during and after integration with one or more components", safety, 1);
         this.addSubGoal(safeIntegration, safety);
     }
+
+    /**
+     * Builds the Energy Consumption characteristic and its sub-characteristics:
+     * Physical Footprint and Ecological Footprint.
+     */
+    private buildEnergyConsumptionCharacteristics() {
+        // Energy Consumption
+        const energy = new CompositeGoal(
+            'Energy Consumption',
+            "The capability of the software to minimize energy usage during operation and reduce its environmental impact.",
+            undefined,
+            1
+        );
+        this.addGoal(energy);
+
+        // Physical Footprint
+        const physicalFootprint = new LeafGoal(
+            'Physical Footprint',
+            "The degree to which the software contributes to the reduction of energy used by the underlying hardware and infrastructure.",
+            energy,
+            1
+        );
+        this.addSubGoal(physicalFootprint, energy);
+
+        // Ecological Footprint
+        const ecologicalFootprint = new LeafGoal(
+            'Ecological Footprint',
+            "The degree to which the software is designed to lower its environmental impact, including carbon emissions and resource consumption throughout its lifecycle.",
+            energy,
+            1
+        );
+        this.addSubGoal(ecologicalFootprint, energy);
+    }
+
 }

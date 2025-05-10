@@ -115,6 +115,12 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
             ${InstrumentationGenerator.generateImportFromStatement('UserIdentitySpanProcessor', '../utils/userUtils')}
             `.trim();
         }
+         // Importation for user identity data exportation (if provided in the configuration)
+         if (automaticTracingOptions.resourceData) {
+            importations += `
+            ${InstrumentationGenerator.generateImportFromStatement('ResourceNodeSpanProcessor', '../utils/resourceUtils')}
+            `.trim();
+        }
 
         // Importation for application metadata exportation (if provided in the configuration)
         if (automaticTracingOptions.appMetadata) {
@@ -252,7 +258,11 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
 
         exportDestinations.forEach(exportDestination => {
             let exporterName = this.getTelemetryExporterVariableName(exportDestination);
-            let spanProcessor = `new BatchSpanProcessor(${exporterName})`; 
+            let spanProcessor = `new BatchSpanProcessor(${exporterName}, {
+      
+          scheduledDelayMillis: 510, 
+          exportTimeoutMillis: 510
+        })`.trim();
 
             // Check for metadata span processing
             if (automaticTracingOptions.appMetadata) {
@@ -269,7 +279,10 @@ export class OpenTelemetryTracingInstrumentationStrategy extends OpenTelemetryMa
             if (automaticTracingOptions.userIdData) {
                 spanProcessor = `new UserIdentitySpanProcessor(${spanProcessor})`.trim();
             }
-
+            // Check for user identity data span processing
+            if (automaticTracingOptions.resourceData) {
+                spanProcessor = `new ResourceNodeSpanProcessor(${spanProcessor})`.trim();
+            }
             content += `
             tracerProvider.addSpanProcessor(${spanProcessor});
             `.trim()

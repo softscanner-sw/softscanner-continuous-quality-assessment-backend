@@ -119,8 +119,7 @@ export class CpuUsageMetric extends LeafMetric {
         }, 0);
 
         // Calculer la moyenne de la mémoire utilisée
-        this._value = totalMemory / tracememory.length;
-
+        this._value = parseFloat((totalMemory / tracememory.length).toFixed(2));
         return this._value;
     }
 
@@ -448,10 +447,10 @@ export class UptimeMetric extends LeafMetric {
 
     constructor() {
         super(
-            "Dom size average",
-            "Dom size average",
-            "Dom size",
-            "Dom",
+            "node uptime",
+            "node uptime",
+            "node uptime",
+            "uptime",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
 
@@ -536,7 +535,7 @@ export class UptimeInterpreter extends MetricInterpreter {
  * @see classes {@link NoUMetric}, {@link NoVMetric}, {@link NoSMetric},
  * {@link NoVuMetric}, {@link NoSuMetric}, and {@link NoSvMetric}
  */
-export class RessourceMapper implements GoalMapper {
+export class ResourceMapper implements GoalMapper {
     metrics: Metric[] = [];
 
     constructor(public appMetadata: ApplicationMetadata) {

@@ -152,7 +152,7 @@ export class DomMetric extends LeafMetric {
             if (trace.attributes["http.method"]) continue;
 
             const url = trace.attributes["http.url"];
-            const domValue = trace.attributes["app.dom.element"];
+            const domValue = trace.attributes["app.system.domelement"];
 
             if (url && typeof domValue === "number") {
                 // Si l'URL est déjà vue, garder le maximum
@@ -217,10 +217,10 @@ export class WeightMetric extends LeafMetric {
 
     constructor() {
         super(
-            "Dom size average",
-            "Dom size average",
-            "Dom size",
-            "Dom",
+            "Weight average",
+            "Weight average",
+            "Weight",
+            "Weight",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
 
@@ -325,7 +325,7 @@ export class WeightInterpreter extends MetricInterpreter {
  * @requires {@link TelemetryType}
  * @see {@link NoUMetric}
  */
-export class EcoindexMetric extends CompositeMetric {
+export class EcologicalFootPrintMetric extends CompositeMetric {
     _value: number = 0;
 
     constructor() {
@@ -360,7 +360,7 @@ export class EcoindexMetric extends CompositeMetric {
         const Dom = this.children["Dom"].computeValue(telemetryData);
         const HTTPNb = this.children["HTTPNb"].computeValue(telemetryData);
         const Weight = this.children["Weight"].computeValue(telemetryData);
-        this._value = (3 * Dom + 2 * HTTPNb + Weight) / 6
+        this._value = 100-(3 * Dom + 2 * HTTPNb + Weight) / 6
         return this._value;
     }
 
@@ -377,8 +377,8 @@ export class EcoindexMetric extends CompositeMetric {
      * @returns - An instance of `UIFuInterpreter` to interpret this metric for the provided goal.
      * @see {@link UIFuInterpreter}.
      */
-    getInterpter(goal: Goal): EcoindexInterpreter {
-        return new EcoindexInterpreter(this, goal);
+    getInterpter(goal: Goal): EcologicalFootPrintInterpreter {
+        return new EcologicalFootPrintInterpreter(this, goal);
     }
 }
 
@@ -390,9 +390,9 @@ export class EcoindexMetric extends CompositeMetric {
  * 
  * @see {@link UIFuMetric}
  */
-export class EcoindexInterpreter extends MetricInterpreter {
+export class EcologicalFootPrintInterpreter extends MetricInterpreter {
     constructor(
-        metric: EcoindexMetric,
+        metric: EcologicalFootPrintMetric,
         goal: Goal,
         // Assume a maximum of 500 interactions/user
         // Assume a default weight of 0.3
@@ -429,7 +429,7 @@ export class EcoIndexMapper implements GoalMapper {
                 new HTTPNbMetric(),
                 new DomMetric(),
                 new WeightMetric(),
-                new EcoindexMetric(),
+                new EcologicalFootPrintMetric(),
 
             );
         }
@@ -451,7 +451,7 @@ export class EcoIndexMapper implements GoalMapper {
      * {@link LPIMetric}, and {@link TPUTMetric}
      */
     map(goal: Goal): void {
-        if (goal.name !== "EcoIndex") {
+        if (goal.name !== "Ecological Footprint") {
             throw new Error(`EcoIndex Mapper: Incorrect mapper for goal ${goal.name}`);
         }
 

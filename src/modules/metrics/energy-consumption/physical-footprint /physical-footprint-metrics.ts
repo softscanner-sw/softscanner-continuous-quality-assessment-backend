@@ -160,7 +160,7 @@ export class PhysicalFootprintMapper implements GoalMapper {
      * {@link LPIMetric}, and {@link TPUTMetric}
      */
     map(goal: Goal): void {
-        if (goal.name !== "Physical-footprint") {
+        if (goal.name !== "Physical Footprint") {
             throw new Error(`Physical-footprint: Incorrect mapper for goal ${goal.name}`);
         }
 

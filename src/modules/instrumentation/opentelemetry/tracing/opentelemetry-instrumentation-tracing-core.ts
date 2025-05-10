@@ -15,6 +15,7 @@ export class OpenTelemetryUserInteractionEventsConfig {
 export abstract class OpenTelemetryAutomaticTracingOptions {
     public appMetadata: boolean;
     public userIdData: boolean;
+    public resourceData: boolean;
 
     constructor({
         /**
@@ -28,9 +29,12 @@ export abstract class OpenTelemetryAutomaticTracingOptions {
          * Default: true
          */
         userIdData = true,
+        ressourceData=true,
+
     }) {
         this.appMetadata = appMetadata;
         this.userIdData = userIdData;
+        this.resourceData=ressourceData;
     }
 
     abstract mapOptionsToAutoInstrumentationModules(): Map<string, string>;
