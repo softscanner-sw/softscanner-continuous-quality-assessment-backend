@@ -79,7 +79,8 @@ export class AssessmentEngine {
     assess(assessmentContext: AssessmentContext, computedMetrics: Metric[]): Assessment[] {
         return assessmentContext.selectedGoals.map(goal => {
             const assessment = new Assessment(goal);
-            const goalMetrics = computedMetrics.filter(m => Array.from(goal.metrics).map(metric => metric.acronym).includes(m.acronym));
+            const goalMetrics = computedMetrics.filter(m => Array.from(goal.metrics).map(metric => metric.acronym)
+                .includes(m.acronym));
 
             goalMetrics.forEach(metric => {
                 const interpreter = metric.getInterpter(goal);

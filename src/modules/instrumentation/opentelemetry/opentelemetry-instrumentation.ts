@@ -138,7 +138,8 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
             appInstrumentationMetadata.bundleName = this.instrumentationBundle.fileName;
 
             // Generate main tracing instrumentation file
-            this.instrumentationStrategy = new OpenTelemetryTracingInstrumentationStrategy(tracingConfig, appInstrumentationMetadata, this.instrumentationAdapter);
+            this.instrumentationStrategy = new OpenTelemetryTracingInstrumentationStrategy(tracingConfig, appInstrumentationMetadata,
+                this.instrumentationAdapter);
             this.instrumentations.push(...this.instrumentationStrategy.generateInstrumentationFiles());
 
             // Associate generated instrumentation files with the instrumentation bundle

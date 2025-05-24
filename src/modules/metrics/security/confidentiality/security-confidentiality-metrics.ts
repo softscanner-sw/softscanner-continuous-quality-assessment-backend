@@ -13,270 +13,53 @@ import {
 } from "../../interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
 
 
-export class SuccessfulLoginMetric extends LeafMetric {
-
+    export class UnauthenticatedSQLModificationMetric extends LeafMetric {
     _value: number = 0;
 
-    constructor(
-    ) {
-        super(
-            "Sucessful Login",
-            "Number of successfull login",
-            "security/confidentiality",
-            "SL",
-            [TelemetryType.TRACING] // The metric requires tracing telemetry
-        );
-
-    }
-    computeValue(telemetryData: any[]): number {
-        let totalSuccessfulConnexion = 0;
-        telemetryData.forEach((data) => {
-            if(data.attributes["http.route"] && data.attributes["http.status_code"]){
-                if (data.attributes["http.status_code"]<400 && data.attributes["http.route"].includes("login")) {
-                    totalSuccessfulConnexion ++;
-                }
-            }
-        })
-        this._value = totalSuccessfulConnexion;
-        return this._value;
-    }
-
-    getInterpter(goal: Goal): any {
-        return new SuccessfulLoginMetricInterpreter(this,goal);
-    }
-}
-
-export class SuccessfulLoginMetricInterpreter extends MetricInterpreter {
-    constructor(
-        metric: SuccessfulLoginMetric,
-        goal: Goal,
-        initialMaxValue: number = 0,
-        baseWeight = 1
-    ) {
-        super(metric, goal, initialMaxValue, baseWeight);
-    }
-}
-
-
-export class FailedLoginMetric extends LeafMetric {
-
-    _value: number = 0;
-
-    constructor(
-        private _selectedEvents = ["login_success"],
-    ) {
-        super(
-            "Failed Login",
-            "number of failed login",
-            "security/confidentiality",
-            "FL",
-            [TelemetryType.TRACING] // The metric requires tracing telemetry
-        );
-
-    }
-    computeValue(telemetryData: any[]): number {
-        let totalFailedConnexion = 0;
-        telemetryData.forEach((data) => {
-            if(data.attributes["http.route"] && data.attributes["http.status_code"]){
-                if (!(data.attributes["http.status_code"]<400) && data.attributes["http.route"].includes("login")) {
-                    totalFailedConnexion ++;
-                }
-            }
-        })
-        this._value = totalFailedConnexion;
-        return this._value;
-    }
-
-    getInterpter(goal: Goal): any {
-        return new FailedLoginMetricInterpreter(this,goal);
-    }
-}
-
-export class FailedLoginMetricInterpreter extends MetricInterpreter {
-    constructor(
-        metric: FailedLoginMetric,
-        goal: Goal,
-        initialMaxValue: number = 0,
-        baseWeight = 1
-    ) {
-        super(metric, goal, initialMaxValue, baseWeight);
-    }
-}
-
-
-export class FailedLoginPerSuccessfulMetric extends CompositeMetric {
-    _value :number = 0;
-    constructor(
-        private _selectedEvent=["failed_connection","granted_connection"],) {
-        super(
-            "Failed Login per sucessfull connection",
-            "number of failed login for each successfull connection",
-            "security/confidentiality",
-            "FLS",
-            [TelemetryType.TRACING]
-        );
-        this.children = {
-            "SL":new SuccessfulLoginMetric(),
-            "FL" : new FailedLoginMetric()
-
-        }
-    }
-    computeValue(telemetryData: any[]): number {
-        let bruteForce = 0;
-        let FLnb:number = this.children["FL"].computeValue(telemetryData);
-        let SLnb:number = this.children["SL"].computeValue(telemetryData);
-        bruteForce = FLnb/SLnb;
-        return bruteForce;
-    }
-
-    getInterpter(goal: Goal): any {
-        return new FailedLoginPerSuccessfulInterpreter(this,goal);
-    }
-}
-
-export class FailedLoginPerSuccessfulInterpreter extends MetricInterpreter {
-    constructor(
-        metric: FailedLoginPerSuccessfulMetric,
-        goal: Goal,
-        initialMaxValue: number = 0,
-        baseWeight = 1
-    ) {
-        super(metric, goal, initialMaxValue, baseWeight);
-    }
-}
-
-export class NoIMetric extends LeafMetric{
-    _value :number = 0;
     constructor() {
         super(
-            "Number of IP",
-            "Number of differents IPs ",
-            "security/confidentiality",
-            "BFU",
+            "Unauthenticated SQL Modifications",
+            "Ratio of modifying SQL queries executed without authentication",
+            "security/integrity",
+            "SA",
             [TelemetryType.TRACING]
         );
     }
 
-    computeValue(data: any[]): any {
-        const usersIp: { [userId: string]: number } = {};
-
-        data.forEach((value) => {
-            const userIp = value.attributes["http.client_ip"];
-            usersIp[userIp] = (usersIp[userIp] || 0) + 1;
-        })
-    }
-
-    getInterpter(goal: Goal): any {
-        return new NoIInterpreter(this,goal);
-    }
-}
-
-export class NoIInterpreter extends MetricInterpreter {
-    constructor(
-        metric: NoIMetric,
-        goal: Goal,
-        initialMaxValue: number = 0,
-        baseWeight = 1
-    ) {
-        super(metric, goal, initialMaxValue, baseWeight);
-    }
-
-}
-
-export class BruteForcePerUserMetric extends CompositeMetric {
-    _value :number = 0;
-    constructor(private _selectedEvent=["login_failed","login_success"],) {
-        super(
-            "BruteForce per User",
-            "number of failed login before a successfull for each user ",
-            "security/confidentiality",
-            "BFU",
-            [TelemetryType.TRACING]
-        );
-        this.children = {"NoI":new NoIMetric()}
-    }
     computeValue(telemetryData: any[]): number {
-        const failedConnexion: { [key: string]: number } = {};
-        const successFullConnexion :{ [key: string]: number } = {};
-        let bruteForce = 0;
-        telemetryData.forEach(data=> {
-            if (data.attribute["http.route"] && data.attribute["http.status_code"] && data.attribute["http.client_ip"]){
-                if (data.attribute["http.route"].includes("/login")) {
-                        if (data.attribute["http.status_code"]<400) {
-                            successFullConnexion[data.attribute["http.client_ip"]] = (successFullConnexion[data.attribute["http.client_ip"]] || 0) + 1;
-                        } else {
-                            failedConnexion[data.attribute["http.client_ip"]] = (failedConnexion[data.attribute["http.client_ip"]] || 0) + 1;
-                        }
+        const modifyingCommands = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER"];
+        let totalModifyingQueries = 0;
+        let unauthModifyingQueries = 0;
+
+        telemetryData.forEach((data) => {
+            const sql = data.attributes["db.statement"]?.toUpperCase() || "";
+
+            const isModifyingQuery = modifyingCommands.some(cmd => sql.includes(cmd));
+            const isAuthenticated = !!(data.attributes["app.user.id"]);
+
+            const httpStatus = data.attributes["http.status_code"];
+            const isRejected = httpStatus === 401 || httpStatus === 403;
+
+            if (isModifyingQuery) {
+                totalModifyingQueries++;
+                if (!isAuthenticated || isRejected) {
+                    unauthModifyingQueries++;
                 }
             }
-        })
-        Object.keys(failedConnexion).forEach((key) => {
-            if (failedConnexion[key]>=10){
-                if (Object.keys(successFullConnexion[key]).includes(key)) {
-                    bruteForce++;
-                }
-            }
-        })
-        return bruteForce/this.children["NoI"].computeValue(telemetryData);
-    }
+        });
 
-    getInterpter(goal: Goal): any {
-        return new BruteForcePerUserInterpreter(this,goal);
-    }
-}
-
-export class BruteForcePerUserInterpreter extends MetricInterpreter {
-    constructor(
-        metric: BruteForcePerUserMetric,
-        goal: Goal,
-        initialMaxValue: number = 0,
-        baseWeight = 1
-    ) {
-        super(metric, goal, initialMaxValue, baseWeight);
-    }
-}
-
-export class TestMetric extends LeafMetric {
-
-    _value: number = 0;
-
-    constructor(
-        private _selectedEvents: any[],
-    ) {
-        super(
-            "Test",
-            "Test",
-            "test/test",
-            "TEST",
-            [TelemetryType.TRACING] // The metric requires tracing telemetry
-        );
-
-    }
-    computeValue(telemetryData: any[]): number {
-        // Récupérer les logs de connexions ratées
-        // Regarder celles qui ont la même IP
-        // Faire un taux de tentative de bruteforce ? jsp ptn de merde
-        const selectedEventsStr = "";
-        let totalFailedConnexion = 0;
-        telemetryData
-            .map(data => data.attributes["event_type"])
-            .forEach(name => {
-                if (selectedEventsStr.includes(name))
-                    totalFailedConnexion++;
-            });
-
-
+        this._value = totalModifyingQueries === 0 ? 0 : unauthModifyingQueries / totalModifyingQueries;
         return this._value;
     }
 
     getInterpter(goal: Goal): any {
-        return new TestMetricInterpreter(this,goal);
+        return new UnauthenticatedSQLModificationMetricInterpreter(this, goal);
     }
 }
 
-export class TestMetricInterpreter extends MetricInterpreter {
+export class UnauthenticatedSQLModificationMetricInterpreter extends MetricInterpreter {
     constructor(
-        metric: TestMetric,
+        metric: UnauthenticatedSQLModificationMetric,
         goal: Goal,
         initialMaxValue: number = 0,
         baseWeight = 1
@@ -285,7 +68,221 @@ export class TestMetricInterpreter extends MetricInterpreter {
     }
 }
 
+export class ScanAPIMetric extends LeafMetric {
+    _value: number = 0;
 
+    constructor() {
+        super(
+            "Scan API Login",
+            "Number of supposed tentative of API scan (high 404 ratio or high endpoint diversity)",
+            "security/confidentiality",
+            "SA",
+            [TelemetryType.TRACING]
+        );
+    }
+
+    computeValue(telemetryData: any[]): number {
+        let requestsByIp: { [ip: string]: { count: number, errors404: number, targets: Set<string> } } = {};
+
+        telemetryData.forEach((data) => {
+            const ip = data.attributes["net.host.ip"] || "unknown";
+            const status = data.attributes["http.status_code"];
+            const target = data.attributes["http.target"] || "unknown";
+
+            if (!requestsByIp[ip]) {
+                requestsByIp[ip] = { count: 0, errors404: 0, targets: new Set<string>() };
+            }
+
+            requestsByIp[ip].count++;
+            if (status === 404) {
+                requestsByIp[ip].errors404++;
+            }
+            requestsByIp[ip].targets.add(target);
+        });
+
+        let susIP = 0;
+        let totalIP = Object.keys(requestsByIp).length;
+
+        for (const ip in requestsByIp) {
+            const { count, errors404, targets } = requestsByIp[ip];
+
+            if (count > 10 && (errors404 / count > 0.5 || targets.size > 20)) {
+                susIP++;
+            }
+        }
+        this._value = totalIP === 0 ? 0 : susIP / totalIP;
+        return this._value;
+    }
+
+    getInterpter(goal: Goal): any {
+        return new ScanAPIMetricInterpreter(this, goal);
+    }
+}
+
+export class ScanAPIMetricInterpreter extends MetricInterpreter {
+    constructor(
+        metric: ScanAPIMetric,
+        goal: Goal,
+        initialMaxValue: number = 0,
+        baseWeight = 1
+    ) {
+        super(metric, goal, initialMaxValue, baseWeight);
+    }
+}
+
+export class XSSMetric extends LeafMetric {
+
+    _value: number = 0;
+
+    constructor(
+    ) {
+        super(
+            "XSS injection",
+            "Number of xss injection",
+            "security/confidentiality",
+            "SA",
+            [TelemetryType.TRACING]
+        );
+
+    }
+    computeValue(telemetryData: any[]): number {
+        const suspiciousPatterns = ["<script", "%3Cscript", "onerror=", "javascript:"];
+        let totalRequest = 0;
+        let xssRequest = 0;
+
+        for (const data of telemetryData) {
+            const target = data.attributes?.["http.target"];
+            if (typeof target !== "string") continue;
+
+            totalRequest++;
+
+            const hasXSSPattern = suspiciousPatterns.some(pattern =>
+                target.toLowerCase().includes(pattern)
+            );
+
+            if (hasXSSPattern) {
+                xssRequest++;
+            }
+        }
+
+        this._value = totalRequest === 0 ? 0 : xssRequest / totalRequest;
+        return this._value;
+
+    }
+
+    getInterpter(goal: Goal): any {
+        return new XSSMetricInterpreter(this,goal);
+    }
+}
+
+export class XSSMetricInterpreter extends MetricInterpreter {
+    constructor(
+        metric: XSSMetric,
+        goal: Goal,
+        initialMaxValue: number = 0,
+        baseWeight = 1
+    ) {
+        super(metric, goal, initialMaxValue, baseWeight);
+    }
+}
+
+export class AuthRefusedMetric extends LeafMetric {
+    _value: number = 0;
+    constructor(
+    ) {
+        super(
+            "XSS injection",
+            "Number of xss injection",
+            "security/confidentiality",
+            "SA",
+            [TelemetryType.TRACING]
+        );
+
+    }
+    computeValue(telemetryData: any[]): number {
+        let totalRequest = 0;
+        let authrefusedRequest = 0;
+        telemetryData.forEach((data) => {
+            totalRequest++;
+            if(data.attributes["http.target"]){
+                if (data.attributes["http.status_code"] == 401 || data.attributes["http.status_code"] == 403) {
+                    authrefusedRequest ++;
+                }
+            }
+        })
+        this._value = totalRequest === 0 ? 0 :authrefusedRequest/totalRequest;
+        return this._value;
+    }
+
+    getInterpter(goal: Goal): any {
+        return new AuthRefusedMetricInterpreter(this,goal);
+    }
+}
+
+export class AuthRefusedMetricInterpreter extends MetricInterpreter {
+    constructor(
+        metric: AuthRefusedMetric,
+        goal: Goal,
+        initialMaxValue: number = 0,
+        baseWeight = 1
+    ) {
+        super(metric, goal, initialMaxValue, baseWeight);
+    }
+}
+
+export class SQLInjectionMetric extends LeafMetric {
+    _value: number = 0;
+    constructor(
+    ) {
+        super(
+            "SQL injection",
+            "Number of sql injection",
+            "security/confidentiality",
+            "SA",
+            [TelemetryType.TRACING]
+        );
+
+    }
+    computeValue(telemetryData: any[]): number {
+        function isSuspicious(input: string): boolean {
+            let suspiciousPatterns = [
+                /(\bor\b|\band\b)\s+['"]?\d+['"]?\s*=\s*['"]?\d+['"]?/,
+                /--|#|\/\*/,
+                /(;.*)/,
+                /\b(UNION|SELECT|DROP|INSERT|DELETE|UPDATE|EXEC|XP_)\b.*\b(SELECT|FROM|WHERE)?/,
+            ];
+            return suspiciousPatterns.some(pattern => pattern.test(input));
+        }
+
+        let totalRequest = 0;
+        let sqlInjectionRequest = 0;
+        telemetryData.forEach((data) => {
+            totalRequest++;
+            if(data.attributes["db.statement"]){
+                if (isSuspicious(data.attributes["db.statement"])) {
+                    sqlInjectionRequest ++;
+                }
+            }
+        })
+        this._value = totalRequest === 0 ? 0 : sqlInjectionRequest/totalRequest;
+        return this._value;
+    }
+
+    getInterpter(goal: Goal): any {
+        return new SQLInjectionMetricInterpreter(this,goal);
+    }
+}
+
+export class SQLInjectionMetricInterpreter extends MetricInterpreter {
+    constructor(
+        metric: SQLInjectionMetric,
+        goal: Goal,
+        initialMaxValue: number = 0,
+        baseWeight = 1
+    ) {
+        super(metric, goal, initialMaxValue, baseWeight);
+    }
+}
 
 
 export class ConfidentialityMapper implements GoalMapper {
@@ -296,44 +293,24 @@ export class ConfidentialityMapper implements GoalMapper {
     }
 
     private prepareMetrics() {
-        if (this.appMetadata.type.toLowerCase().includes('frontend')) {
+        if (this.appMetadata.type.toLowerCase().includes('backend')) {
             this.metrics.push(
                 /* User Interaction Frequency metrics */
-                new BruteForcePerUserMetric(),
-                new FailedLoginPerSuccessfulMetric(),
-                new FailedLoginMetric(),
-                new SuccessfulLoginMetric()
+                new XSSMetric(),
+                new ScanAPIMetric(),
+                new AuthRefusedMetric(),
+                new SQLInjectionMetric(),
+                new UnauthenticatedSQLModificationMetric(),
             );
         }
     }
 
-    /**
-     * Maps the `Interaction Capability -> User Engagement -> Activity` goal to its metrics:
-     *
-     * 1. **User Interaction Frequency per User (UIFu)**;
-     * 2. **User Interaction Frequency per Visit (UIFv)**;
-     * 3. **User Interaction Frequency per Session (UIFs)**;
-     * 4. **Dwell Time per User (DTu)**;
-     * 5. **Dwell Time per Visit (DTv)**;
-     * 6. **Dwell Time per Session (DTs)**;
-     * 7. **Navigation Clicks per User (NNCu)**;
-     * 8. **Navigation Clicks per Visit (NNCv)**;
-     * 9. **Navigation Clicks per Session (NNCs)**.
-     *
-     * @param goal The goal to map.
-     * @throws An error if the goal is not "Activity".
-     * @see classes {@link UIFuMetric}, {@link UIFvMetric}, {@link UIFsMetric},
-     * {@link DTuMetric}, {@link DTvMetric}, {@link DTsMetric},
-     * {@link NNCuMetric}, {@link NNCvMetric}, and {@link NNCsMetric}.
-     */
     map(goal: Goal) {
         if (goal.name !== "Confidentiality")
             throw new Error(`Confidentiality Mapper: Incorrect Mapper for Goal ${goal.name}`);
 
-        // Set overall weight for "Activity"
-        goal.weight = 0.35;
+        goal.weight = 0.3;
 
-        // Map the metrics to their goal
         this.metrics.forEach(metric => goal.metrics.add(metric));
     }
 }

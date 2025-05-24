@@ -45,7 +45,9 @@ export class ISOIEC25010 extends QualityModel {
      */
     private buildInteractionCapabilityCharacteristics() {
         /* Interaction Capability */
-        const interactionCapability = new CompositeGoal('Interaction Capability', 'The ability of a product to be interacted with by specified users to exchange information between a user and a system via the user interface to complete the intended task', undefined, 1);
+        const interactionCapability = new CompositeGoal('Interaction Capability',
+            'The ability of a product to be interacted with by specified users to exchange information between a user and a system via the user interface to complete the intended task',
+            undefined, 1);
         this.addGoal(interactionCapability);
 
         /* Appropriateness Recognizability */
