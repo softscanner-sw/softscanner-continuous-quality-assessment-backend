@@ -1,5 +1,5 @@
 import { EcoIndexMapper } from "../../modules/metrics/energy-consumption/ecologicalFootPrint/ecological-footPrint-metrics";
-import { PhysicalFootprintMapper } from "../../modules/metrics/energy-consumption/physical-footprint /physical-footprint-metrics";
+import { PhysicalFootprintMapper } from "../../modules/metrics/energy-consumption/physical-footprint/physical-footprint-metrics";
 import { ActivityMapper } from "../../modules/metrics/interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
 import { LoyaltyMapper } from "../../modules/metrics/interaction-capability/user-engagement/loyalty/user-engagement-loyalty-metrics";
 import { PopularityMapper } from "../../modules/metrics/interaction-capability/user-engagement/popularity/user-engagement-popularity-metrics";
