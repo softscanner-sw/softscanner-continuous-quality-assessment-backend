@@ -20,8 +20,8 @@ import {
         super(
             "Unauthenticated SQL Modifications",
             "Ratio of modifying SQL queries executed without authentication",
-            "security/integrity",
-            "SA",
+            "Unauthentified queries/total queries",
+            "USQLM",
             [TelemetryType.TRACING]
         );
     }
@@ -75,7 +75,7 @@ export class ScanAPIMetric extends LeafMetric {
         super(
             "Scan API Login",
             "Number of supposed tentative of API scan (high 404 ratio or high endpoint diversity)",
-            "security/confidentiality",
+            "Suspicious IP/Total IP",
             "SA",
             [TelemetryType.TRACING]
         );
@@ -139,8 +139,8 @@ export class XSSMetric extends LeafMetric {
         super(
             "XSS injection",
             "Number of xss injection",
-            "security/confidentiality",
-            "SA",
+            "XSS injection/total request",
+            "XSSI",
             [TelemetryType.TRACING]
         );
 
@@ -191,10 +191,10 @@ export class AuthRefusedMetric extends LeafMetric {
     constructor(
     ) {
         super(
-            "XSS injection",
-            "Number of xss injection",
-            "security/confidentiality",
-            "SA",
+            "Auth refused metric",
+            "Number of request refused for bad authentification",
+            "Request refused/total request",
+            "AR",
             [TelemetryType.TRACING]
         );
 
@@ -237,8 +237,8 @@ export class SQLInjectionMetric extends LeafMetric {
         super(
             "SQL injection",
             "Number of sql injection",
-            "security/confidentiality",
-            "SA",
+            "Detected injection/total request",
+            "SQLI",
             [TelemetryType.TRACING]
         );
 
