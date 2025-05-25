@@ -47,6 +47,7 @@ export class MetricsMapper implements GoalVisitor {
                 break;
             case "confidentiality":
                 this._mapper = new ConfidentialityMapper(this.appMetadata);
+                break;
             default:
                 this._mapper = undefined;
         }
