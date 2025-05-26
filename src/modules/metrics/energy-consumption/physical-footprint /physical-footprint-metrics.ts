@@ -63,13 +63,13 @@ export class PhysicalFootprintMetric extends CompositeMetric {
         const alpha = 0.4;  // Poids de l'usage CPU
         const beta = 0.3;   // Poids de l'usage mémoire
         const gamma = 0.2;  // Poids du temps CPU
-        const delta = 0.1;  // Poids de l'uptime
 
         // Calculer le Footprint (empremte) du serveur
-        this._value = alpha * (CpuUsage / 100) + beta * (MemoryUsage / 100) + gamma * (CpuTimeUsage / 100) + delta * (Uptime / 100);
-
-        // Retourner la valeur du footprint calculée
-        return this._value;
+        const cpuTimeInSeconds = CpuTimeUsage / 1000000 ;
+        
+        // Calculer le footprint physique
+        this . _value = alpha * ( CpuUsage / 100) + beta * ( MemoryUsage / 100) + gamma * ( cpuTimeInSeconds / Uptime ) ;
+        return this . _value ;
     }
 
 

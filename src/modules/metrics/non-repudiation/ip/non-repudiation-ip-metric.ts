@@ -82,10 +82,10 @@ export class LoginSMetric extends LeafMetric {
 
     constructor() {
         super(
-            "Average success by login",
-            "Average number of sucess per login",
+            " success by login",
+            " number of sucess per login",
             "Sucess/login",
-            "Login",
+            "LoginS",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
     }
@@ -101,10 +101,8 @@ export class LoginSMetric extends LeafMetric {
             return data.attributes["http.method"] === "POST" &&
                 (data.attributes["http.url"]?.includes("login") || data.attributes["http.url"]?.includes("auth"));
         });
-        console.log("HEHUEZFHOEZFHOEZFIOHZEFIOHEFJ" + loginOrAuthTraces)
         // Compter le nombre de réponses avec un code de statut 200
         const successfulResponses = loginOrAuthTraces.filter(data => data.attributes["http.status_code"] === 200).length;
-        console.log("successfulResponses" + successfulResponses)
 
         // Calculer la moyenne des réponses réussies
         const totalResponses = loginOrAuthTraces.length;
@@ -114,10 +112,10 @@ export class LoginSMetric extends LeafMetric {
         }
 
         // La moyenne des réponses avec statut 200
-        const authenticityScore = successfulResponses / totalResponses;
-        console.log("authenticityScore" + authenticityScore)
+        const authenticityScore = successfulResponses ;
 
-        this._value = authenticityScore
+        this._value = authenticityScore;
+        console.log(authenticityScore, "nb reussi");
 
         return this._value;
     }
@@ -157,10 +155,10 @@ export class LoginSSMetric extends LeafMetric {
 
     constructor() {
         super(
-            "Average tentative login by sessions",
-            "Average number of tentative per login",
+            "Average success login by sessions",
+            "Average number of success per login sessions",
             "Sucess/login",
-            "LoginS",
+            "LoginSS",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
     }
@@ -214,8 +212,7 @@ export class LoginSSMetric extends LeafMetric {
 
         // Calculer le score d'authenticité comme la moyenne des réussites
         const authenticityScore = totalSuccessful / totalAttempts;
-        this._value = authenticityScore
-        console.log("authenticityScoreLOGINS" + authenticityScore)
+        this._value = authenticityScore;
 
         return this._value;
     }
@@ -254,10 +251,10 @@ export class LoginEMetric extends LeafMetric {
 
     constructor() {
         super(
-            "Average success by login",
-            "Average number of sucess per login",
-            "Sucess/login",
-            "Login",
+            " echec  login ",
+            " number of echec per login",
+            "echec/login",
+            "LoginE",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
     }
@@ -273,11 +270,9 @@ export class LoginEMetric extends LeafMetric {
             return data.attributes["http.method"] === "POST" &&
                 (data.attributes["http.url"]?.includes("login") || data.attributes["http.url"]?.includes("auth"));
         });
-        console.log("Traces de connexion : " + loginOrAuthTraces);
 
         // Compter le nombre de réponses avec un code de statut différent de 200 (connexion échouée)
         const failedResponses = loginOrAuthTraces.filter(data => data.attributes["http.status_code"] !== 200).length;
-        console.log("Nombre de connexions échouées : " + failedResponses);
 
         // Calculer la moyenne des réponses échouées
         const totalResponses = loginOrAuthTraces.length;
@@ -287,9 +282,8 @@ export class LoginEMetric extends LeafMetric {
         }
 
         // La moyenne des réponses échouées
-        const failureScore = failedResponses / totalResponses;
-        console.log("Taux d'échecs des connexions : " + failureScore);
-
+        const failureScore = failedResponses ;
+        console.log(failureScore, "nb ecehc");
         this._value = failureScore;
 
         return this._value;
@@ -331,10 +325,10 @@ export class LoginESMetric extends LeafMetric {
 
     constructor() {
         super(
-            "Average tentative login by sessions",
-            "Average number of tentative per login",
+            "Average echec login by sessions",
+            "Average number of echec per login sessions",
             "Sucess/login",
-            "LoginS",
+            "LoginES",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
     }
@@ -390,7 +384,6 @@ export class LoginESMetric extends LeafMetric {
         const failureScore = totalFailed / totalSessions;
         this._value = failureScore;
 
-        console.log("Moyenne des connexions échouées par session : " + failureScore);
 
         return this._value;
     }
@@ -540,10 +533,10 @@ export class LoginSRatioMetric extends CompositeMetric {
 
     constructor() {
         super(
-            "LoginRatio ",
-            "LoginRatio ",
-            "LoginRatio ",
-            "LoginRatio",
+            "LoginRatioS ",
+            "LoginRatioS ",
+            "LoginRatioS ",
+            "LoginRatioS",
             [TelemetryType.TRACING] // The metric requires tracing telemetry
         );
 

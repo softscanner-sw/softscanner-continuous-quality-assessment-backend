@@ -248,7 +248,7 @@ export class WeightMetric extends LeafMetric {
         // Parcourir les traces de télémétrie
         telemetryData.forEach((trace) => {
             // Vérifier si la trace est de type "resourceFetch" et contient les informations nécessaires
-            if (trace.name === "resourceFetch" && trace.attributes["http.url"] && trace.attributes["http.response_content_length"]) {
+            if ((trace.name === "resourceFetch"  || trace.name === "documentFetch" ) && trace.attributes["http.url"] && trace.attributes["http.response_content_length"]) {
                 const url = trace.attributes["http.url"];
                 const responseContentLength = parseInt(trace.attributes["http.response_content_length"], 10);
 
@@ -357,12 +357,55 @@ export class EcologicalFootPrintMetric extends CompositeMetric {
      * @returns The rate of user interactions per user.
      */
     computeValue(telemetryData: any[]): number {
-        const Dom = this.children["Dom"].computeValue(telemetryData);
-        const HTTPNb = this.children["HTTPNb"].computeValue(telemetryData);
-        const Weight = this.children["Weight"].computeValue(telemetryData);
-        this._value = 100-(3 * Dom + 2 * HTTPNb + Weight) / 6
+        // Extraction des valeurs des enfants (ou d'où tu récupères dom, httpNb, weight)
+        const dom = this.children["Dom"].computeValue(telemetryData);
+        const httpNb = this.children["HTTPNb"].computeValue(telemetryData);
+        const weightKb = this.children["Weight"].computeValue(telemetryData);
+    
+        // Quantiles EcoIndex (valeurs officielles)
+        const quantilesDom = [
+          0, 47, 75, 159, 233, 298, 358, 417, 476, 537,
+          603, 674, 753, 843, 949, 1076, 1237, 1459, 1801, 2479, 594601
+        ];
+        const quantilesHttpNb = [
+          0, 2, 15, 25, 34, 42, 49, 56, 63, 70,
+          78, 86, 95, 105, 117, 130, 147, 170, 205, 281, 3920
+        ];
+        const quantilesWeight = [
+          0, 1.37, 144.7, 319.53, 479.46, 631.97, 783.38, 937.91, 1098.62, 1265.47,
+          1448.32, 1648.27, 1876.08, 2142.06, 2465.37, 2866.31, 3401.59, 4155.73, 5400.08, 8037.54, 223212.26
+        ];
+    
+        // Fonction interne pour normaliser en fonction des quantiles
+        function normalizeWithQuantiles(value: number, quantiles: number[]): number {
+          if (value <= quantiles[0]) return 0;
+          if (value >= quantiles[quantiles.length - 1]) return 100;
+          for (let i = 0; i < quantiles.length - 1; i++) {
+            if (value >= quantiles[i] && value < quantiles[i + 1]) {
+              const range = quantiles[i + 1] - quantiles[i];
+              const pos = (value - quantiles[i]) / range;
+              const scoreLow = (i / (quantiles.length - 1)) * 100;
+              const scoreHigh = ((i + 1) / (quantiles.length - 1)) * 100;
+              return scoreLow + pos * (scoreHigh - scoreLow);
+            }
+          }
+          return 100;
+        }
+    
+        // Normalisation des valeurs
+        const normDom = normalizeWithQuantiles(dom, quantilesDom);
+        const normHttpNb = normalizeWithQuantiles(httpNb, quantilesHttpNb);
+        const normWeight = normalizeWithQuantiles(weightKb, quantilesWeight);
+    
+        // Calcul EcoIndex selon la formule officielle
+        this._value = 100 - (3 * normDom + 2 * normHttpNb + normWeight) / 6;
+    
+        // Clamp entre 0 et 100
+        this._value = Math.max(0, Math.min(100, this._value));
+    
         return this._value;
     }
+    
 
     /**
      * Resets the metric value to its initial state.
