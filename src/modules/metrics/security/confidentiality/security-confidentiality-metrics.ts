@@ -13,7 +13,7 @@ import {
 } from "../../interaction-capability/user-engagement/activity/user-engagement-activity-metrics";
 
 
-    export class UnauthenticatedSQLModificationMetric extends LeafMetric {
+export class UnauthenticatedSQLModificationMetric extends LeafMetric {
     _value: number = 0;
 
     constructor() {
@@ -61,10 +61,9 @@ export class UnauthenticatedSQLModificationMetricInterpreter extends MetricInter
     constructor(
         metric: UnauthenticatedSQLModificationMetric,
         goal: Goal,
-        initialMaxValue: number = 0,
-        baseWeight = 1
+        baseWeight = 0.4
     ) {
-        super(metric, goal, initialMaxValue, baseWeight);
+        super(metric, goal, baseWeight);
     }
 }
 
@@ -123,10 +122,9 @@ export class ScanAPIMetricInterpreter extends MetricInterpreter {
     constructor(
         metric: ScanAPIMetric,
         goal: Goal,
-        initialMaxValue: number = 0,
-        baseWeight = 1
+        baseWeight = 0.4
     ) {
-        super(metric, goal, initialMaxValue, baseWeight);
+        super(metric, goal, baseWeight);
     }
 }
 
@@ -146,14 +144,18 @@ export class XSSMetric extends LeafMetric {
 
     }
     computeValue(telemetryData: any[]): number {
-        const suspiciousPatterns = ["<script", "%3Cscript", "onerror=", "javascript:"];
+        const suspiciousPatterns = [
+            "<script", "%3Cscript", "onerror=", "onload=", "javascript:",
+            "alert(", "src=", "document.cookie", "<img", "eval(", "window.location"
+        ];
         let totalRequest = 0;
         let xssRequest = 0;
 
         for (const data of telemetryData) {
             const target = data.attributes?.["http.target"];
+            const method = data.attributes?.["http.method"];
             if (typeof target !== "string") continue;
-
+            if ("GET" !== method) continue;
             totalRequest++;
 
             const hasXSSPattern = suspiciousPatterns.some(pattern =>
@@ -165,7 +167,7 @@ export class XSSMetric extends LeafMetric {
             }
         }
 
-        this._value = totalRequest === 0 ? 0 : xssRequest / totalRequest;
+        this._value = totalRequest === 0 ? 0 : (xssRequest / totalRequest)*100;
         return this._value;
 
     }
@@ -179,10 +181,9 @@ export class XSSMetricInterpreter extends MetricInterpreter {
     constructor(
         metric: XSSMetric,
         goal: Goal,
-        initialMaxValue: number = 0,
-        baseWeight = 1
+        baseWeight = 0.4
     ) {
-        super(metric, goal, initialMaxValue, baseWeight);
+        super(metric, goal, baseWeight);
     }
 }
 
@@ -223,10 +224,9 @@ export class AuthRefusedMetricInterpreter extends MetricInterpreter {
     constructor(
         metric: AuthRefusedMetric,
         goal: Goal,
-        initialMaxValue: number = 0,
-        baseWeight = 1
+        baseWeight = 0.4
     ) {
-        super(metric, goal, initialMaxValue, baseWeight);
+        super(metric, goal, baseWeight);
     }
 }
 
@@ -277,10 +277,9 @@ export class SQLInjectionMetricInterpreter extends MetricInterpreter {
     constructor(
         metric: SQLInjectionMetric,
         goal: Goal,
-        initialMaxValue: number = 0,
-        baseWeight = 1
+        baseWeight = 0.4
     ) {
-        super(metric, goal, initialMaxValue, baseWeight);
+        super(metric, goal, baseWeight);
     }
 }
 
@@ -295,7 +294,6 @@ export class ConfidentialityMapper implements GoalMapper {
     private prepareMetrics() {
         if (this.appMetadata.type.toLowerCase().includes('backend')) {
             this.metrics.push(
-                /* User Interaction Frequency metrics */
                 new XSSMetric(),
                 new ScanAPIMetric(),
                 new AuthRefusedMetric(),
@@ -309,7 +307,7 @@ export class ConfidentialityMapper implements GoalMapper {
         if (goal.name !== "Confidentiality")
             throw new Error(`Confidentiality Mapper: Incorrect Mapper for Goal ${goal.name}`);
 
-        goal.weight = 0.3;
+        goal.weight = 0.4; // @TODO remove this later when the weight assignment is finalized on the frontend
 
         this.metrics.forEach(metric => goal.metrics.add(metric));
     }
