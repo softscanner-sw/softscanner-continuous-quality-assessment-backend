@@ -63,6 +63,7 @@ export class OpenTelemetryUserIdentityInstrumentationStrategy extends OpenTeleme
         ${InstrumentationGenerator.generateImportFromStatement('Context', '@opentelemetry/api')}
         ${InstrumentationGenerator.generateImportFromStatement('Span, SpanProcessor', this.application.type.toLowerCase().includes('frontend') ? '@opentelemetry/sdk-trace-web' : '@opentelemetry/sdk-trace-base')}
         ${InstrumentationGenerator.generateImportFromStatement('v4 as uuidv4', 'uuid')}
+
         `.trim();
     }
 
@@ -91,6 +92,7 @@ export class OpenTelemetryUserIdentityInstrumentationStrategy extends OpenTeleme
             private static readonly VISIT_ID_KEY = 'app.visit.id'; // key for visit IDs
             private static readonly VISIT_TIMESTAMP_KEY = "app.visit.timestamp"; // key for visit timestamps
             private static readonly VISIT_TIMEOUT_MS = 30 * 60 * 1000; // visit timeout (30 minutes)
+           
 
             private _nextProcessor: SpanProcessor;
             constructor(nextProcessor: SpanProcessor) {
@@ -107,6 +109,7 @@ export class OpenTelemetryUserIdentityInstrumentationStrategy extends OpenTeleme
                 span.setAttribute(UserIdentitySpanProcessor.USER_ID_KEY, this.getOrGenerateUserId());
                 span.setAttribute(UserIdentitySpanProcessor.SESSION_ID_KEY, this.getOrGenerateSessionId());
                 span.setAttribute(UserIdentitySpanProcessor.VISIT_ID_KEY, this.getOrGenerateVisitId());
+
                 this._nextProcessor.onStart(span, parentContext);
             }
 
@@ -122,6 +125,7 @@ export class OpenTelemetryUserIdentityInstrumentationStrategy extends OpenTeleme
                 return this._nextProcessor.shutdown();
             }
 
+            
             /**
              * Retrieves or stores generated user IDs (using UUIDv4) into localStorage if available.
              * Otherwise, uses a fallback global store.

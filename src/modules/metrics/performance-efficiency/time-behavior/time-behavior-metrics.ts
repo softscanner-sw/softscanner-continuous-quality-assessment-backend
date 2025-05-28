@@ -660,7 +660,7 @@ export class TPUTInterpreter extends MetricInterpreter {
  * 6. **Throughput (TPUT)**.
  * 
  * @see classes {@link NHRMetric}, {@link ARTMetric}, {@link P95RTMetric}, {@link RTVarMetric},
- * {@link LPIMetric}, and {@link TPUTMetric}
+ * {@link LPIMetric}, and {@link TPUTMetric} and {@link IpMetric}
  */
 export class TimeBehaviorMapper implements GoalMapper {
     metrics: Metric[] = [];

@@ -616,6 +616,10 @@ export class NoSvInterpreter extends MetricInterpreter {
     }
 }
 
+
+
+
+
 /**
  * This class is responsible for mapping `Interaction Capability -> User Engagement -> Popularity`
  * goal to its corresponding metrics:
@@ -632,7 +636,7 @@ export class NoSvInterpreter extends MetricInterpreter {
  */
 export class PopularityMapper implements GoalMapper {
     metrics: Metric[] = [];
-
+    
     constructor(public appMetadata: ApplicationMetadata) {
         this.prepareMetrics();
     }

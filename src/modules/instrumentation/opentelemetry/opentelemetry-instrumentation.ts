@@ -14,6 +14,7 @@ import { OpenTelemetryNodeTracingInstrumentationAdapter, OpenTelemetryTracingIns
 import { OpenTelemetryTracingInstrumentationConfig } from "./tracing/opentelemetry-instrumentation-tracing-core";
 import { OpenTelemetryMetadataSpanProcessingInstrumentationStrategy } from "./tracing/processing/opentelemetry-instrumentation-tracing-app-metadata";
 import { OpenTelemetryUserIdentityInstrumentationStrategy } from "./tracing/processing/opentelemetry-instrumentation-tracing-user-identity";
+import { OpenTelemetryResourceNodeInstrumentationStrategy } from "./tracing/processing/OpenTelemetryResourceNodeInstrumentationStrategy";
 
 /**
  * Class responsible for generating OpenTelemetry instrumentation files and bundles for an application.
@@ -122,7 +123,11 @@ export class OpenTelemetryInstrumentationGenerator extends InstrumentationGenera
                 this.instrumentationStrategy = new OpenTelemetryUserIdentityInstrumentationStrategy(tracingConfig, appInstrumentationMetadata.appMetadata);
                 this.instrumentations.push(...this.instrumentationStrategy.generateInstrumentationFiles());
             }
-
+            // Check if user identity data is required and use the corresponding instrumentation strategy
+            if (tracingConfig.automaticTracingOptions.resourceData) {
+                this.instrumentationStrategy = new OpenTelemetryResourceNodeInstrumentationStrategy(tracingConfig, appInstrumentationMetadata.appMetadata);
+                this.instrumentations.push(...this.instrumentationStrategy.generateInstrumentationFiles());
+            }
             // Check if websockets are required for span exportation and use the corresponding instrumentation strategy
             if (tracingConfig.exportDestinations.some(exportDestination =>
                 exportDestination.protocol == TelemetryExportProtocol.WEB_SOCKETS)) {
