@@ -48,7 +48,9 @@ export class InstrumentationManager {
                 if (appMetadata.technology.toLowerCase().includes('node'))
                     autoTracingConfig = new OpenTelemetryNodeAutomaticTracingOptions({
                         http: true,
-                        express: true
+                        express: true,
+                        mysql: true,
+                        mysql2: true
                     });
             }
 

@@ -9,6 +9,7 @@ import { TimeBehaviorMapper } from "../../modules/metrics/performance-efficiency
 import { ApplicationMetadata } from "../application/application-metadata";
 import { CompositeGoal, GoalMapper, GoalVisitor, LeafGoal } from "../goals/goals";
 import { Metric } from "./metrics-core";
+import {ConfidentialityMapper} from "../../modules/metrics/security/confidentiality/security-confidentiality-metrics";
 
 /**
  * Class responsible for mapping goals to corresponding metrics.
@@ -48,6 +49,10 @@ export class MetricsMapper implements GoalVisitor {
             case "time behavior":
                 this._mapper = new TimeBehaviorMapper(this.appMetadata);
                 break;
+
+            case "confidentiality":
+                this._mapper = new ConfidentialityMapper(this.appMetadata);
+
             case "resource utilization":
                 this._mapper = new ResourceMapper(this.appMetadata);
                 break;
@@ -61,6 +66,7 @@ export class MetricsMapper implements GoalVisitor {
                 break;
             case "physical footprint":
                 this._mapper = new PhysicalFootprintMapper(this.appMetadata);
+
                 break;
             default:
                 this._mapper = undefined;
