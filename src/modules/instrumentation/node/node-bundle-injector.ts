@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import * as path from "path";
 import { ApplicationMetadata } from "../../../core/application/application-metadata";
 import { BackendInstrumentationBundleInjector, InstrumentationBundle } from "../../../core/instrumentation/instrumentation-core";
-import { countNodeRequires, InstrumentationInjectionError, planNodeStartScriptInjection, replaceStartScript } from "../../../core/instrumentation/instrumentation-injection";
+import { countNodeRequires, InstrumentationInjectionError, planNodeStartScriptInjection, replaceStartScript, requiredPaths } from "../../../core/instrumentation/instrumentation-injection";
 
 /**
  * Injector for Node applications that handles the injection of instrumentation bundles.
@@ -58,6 +58,15 @@ export class NodeInstrumentationBundleInjector extends BackendInstrumentationBun
     /**
      * Checks that package.json has a supported `start` script (dry run, no modification, nothing copied yet).
      */
+    protected resolveReference(reference: string): string {
+        return path.resolve(path.dirname(this.packageJsonPath), reference);
+    }
+
+    protected currentReferences(): string[] {
+        const { start } = this.readStartScript();
+        return requiredPaths(start);
+    }
+
     protected async validateEntryPoint(): Promise<void> {
         this.report.entryPointPath = this.packageJsonPath;
         const { start } = this.readStartScript();

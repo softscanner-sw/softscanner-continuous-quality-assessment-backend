@@ -48,6 +48,10 @@ export interface InjectionReport {
     entryPoint: EntryPointStatus;
     replacedReferences: string[];
     verified: boolean;
+    /** Earlier bundle files of the same application removed after a verified replacement. */
+    removedBundles: string[];
+    /** Replaced references whose files were kept, with the reason (not owned, still referenced, missing, error). */
+    keptBundles: { reference: string, reason: string }[];
 }
 
 export type EntryPointStatus = 'inserted' | 'already-present' | 'replaced';
@@ -247,4 +251,17 @@ export function countNodeRequires(startScript: string, requirePath: string): num
         if (eq && norm(eq[1]) === norm(requirePath)) n++;
     });
     return n;
+}
+
+/** Paths preloaded by a start script (`--require <p>`, `-r <p>`, `--require=<p>`), quotes removed. */
+export function requiredPaths(startScript: string): string[] {
+    const unquote = (p: string) => p.replace(/^["']|["']$/g, '');
+    const tokens = startScript.trim().split(/\s+/);
+    const paths: string[] = [];
+    tokens.forEach((t, i) => {
+        if ((t === '--require' || t === '-r') && tokens[i + 1]) paths.push(unquote(tokens[i + 1]));
+        const eq = /^--require=(.*)$/.exec(t);
+        if (eq) paths.push(unquote(eq[1]));
+    });
+    return paths;
 }

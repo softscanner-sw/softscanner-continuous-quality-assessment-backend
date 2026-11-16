@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import * as path from "path";
 import { InjectionReport, InstrumentationInjectionError, planHtmlInjection, scriptSources } from "./instrumentation-injection";
 import { ApplicationMetadata } from "../application/application-metadata";
@@ -449,13 +449,57 @@ export abstract class InstrumentationBundleInjector {
             entryPoint: 'already-present',
             replacedReferences: [],
             verified: false,
+            removedBundles: [],
+            keptBundles: [],
         };
         this.validateBundle();
         await this.validateEntryPoint();
         await this.preInject();
         await this.inject();
         await this.postInject();
+        this.removeReplacedBundles();
         return this.report;
+    }
+
+    /**
+     * Resolves a reference found in the entry point (script src or --require path) to an absolute path.
+     */
+    protected abstract resolveReference(reference: string): string;
+
+    /** References to bundles currently present in the entry point. */
+    protected abstract currentReferences(): string[];
+
+    /**
+     * After a verified replacement, deletes the files of the bundles whose references were replaced.
+     * A file is deleted only if it lies directly in the bundle destination folder, carries this application's
+     * bundle prefix and the `.bundle.js` suffix, is not the deployed bundle, and is no longer referenced by the
+     * entry point; its `.LICENSE.txt` and `.map` companions are deleted with it. Any other reference is kept
+     * and reported. A deletion error is reported, not thrown: the injection itself is complete and verified.
+     */
+    protected removeReplacedBundles(): void {
+        if (!this.report.verified || this.report.replacedReferences.length === 0) return;
+        const folder = path.resolve(this.bundleDestinationParentPath);
+        const active = new Set(this.currentReferences().map(r => path.resolve(this.resolveReference(r))));
+        for (const reference of this.report.replacedReferences) {
+            const file = path.resolve(this.resolveReference(reference));
+            const name = path.basename(file);
+            let reason: string | undefined;
+            if (path.dirname(file) !== folder) reason = 'outside the bundle destination folder';
+            else if (!name.startsWith(`${this.bundleAppPrefix}_`) || !name.endsWith('.bundle.js')) reason = 'not a bundle of this application';
+            else if (file === path.resolve(this.deployedBundlePath)) reason = 'deployed bundle';
+            else if (active.has(file)) reason = 'still referenced by the entry point';
+            else if (!existsSync(file)) reason = 'file not found';
+            if (reason) { this.report.keptBundles.push({ reference, reason }); continue; }
+            try {
+                for (const companion of [file, `${file}.LICENSE.txt`, `${file}.map`]) {
+                    if (existsSync(companion)) unlinkSync(companion);
+                }
+                this.report.removedBundles.push(file);
+                console.log(`${this.label} Instrumentation Bundle Injector: removed replaced bundle ${file}`);
+            } catch (error) {
+                this.report.keptBundles.push({ reference, reason: `deletion failed: ${error}` });
+            }
+        }
     }
 
     /**
@@ -557,6 +601,14 @@ export abstract class FrontendInstrumentationBundleInjector extends Instrumentat
     /**
      * Checks that the HTML page exists and has a supported insertion point (dry run, no modification).
      */
+    protected resolveReference(reference: string): string {
+        return path.resolve(path.dirname(this.targetHTMLPagePath), reference);
+    }
+
+    protected currentReferences(): string[] {
+        return scriptSources(readFileSync(this.targetHTMLPagePath, 'utf8'));
+    }
+
     protected async validateEntryPoint(): Promise<void> {
         this.report.entryPointPath = this.targetHTMLPagePath;
         if (!existsSync(this.targetHTMLPagePath)) {

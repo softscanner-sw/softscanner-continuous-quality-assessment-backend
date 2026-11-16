@@ -1,3 +1,4 @@
+import { identifiedInteractionSpans, interactionSpans } from "../user-engagement-population";
 import { ApplicationMetadata } from "../../../../../core/application/application-metadata";
 import { Goal, GoalMapper } from "../../../../../core/goals/goals";
 import { CompositeMetric, Metric } from "../../../../../core/metrics/metrics-core";
@@ -53,6 +54,10 @@ export class UIFuMetric extends CompositeMetric {
      * @returns The rate of user interactions per user.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.user.id');
+        this._observations = population.length;
+
         // Retrieve the array of events considered for user interaction
         const selectedEventsStr = this._selectedEvents.map(event => {
             return Utils.convertEnumValueToLowercaseWithNoSeparator(UserInteractionEvent[event])
@@ -60,7 +65,7 @@ export class UIFuMetric extends CompositeMetric {
 
         // Compute total number of interactions based on the selected user interaction events
         let totalInteractions = 0;
-        telemetryData
+        population
             .map(data => data.attributes["event_type"])
             .forEach(name => {
                 if (selectedEventsStr.includes(name))
@@ -162,6 +167,10 @@ export class UIFvMetric extends CompositeMetric {
      * @returns The rate of user interactions per visit.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.visit.id');
+        this._observations = population.length;
+
         // Retrieve the array of events considered for user interaction
         const selectedEventsStr = this._selectedEvents.map(event => {
             return Utils.convertEnumValueToLowercaseWithNoSeparator(UserInteractionEvent[event])
@@ -169,7 +178,7 @@ export class UIFvMetric extends CompositeMetric {
 
         // Compute total number of interactions based on the selected user interaction events
         let totalInteractions = 0;
-        telemetryData
+        population
             .map(data => data.attributes["event_type"])
             .forEach(name => {
                 if (selectedEventsStr.includes(name))
@@ -271,6 +280,10 @@ export class UIFsMetric extends CompositeMetric {
      * @returns The rate of user interactions per session.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.session.id');
+        this._observations = population.length;
+
         // Retrieve the array of events considered for user interaction
         const selectedEventsStr = this._selectedEvents.map(event => {
             return Utils.convertEnumValueToLowercaseWithNoSeparator(UserInteractionEvent[event])
@@ -278,7 +291,7 @@ export class UIFsMetric extends CompositeMetric {
 
         // Compute total number of interactions based on the selected user interaction events
         let totalInteractions = 0;
-        telemetryData
+        population
             .map(data => data.attributes["event_type"])
             .forEach(name => {
                 if (selectedEventsStr.includes(name))
@@ -379,11 +392,15 @@ export class DTuMetric extends CompositeMetric {
      * @returns The average dwell time per user.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.user.id');
+        this._observations = population.length;
+
         // Initialize the user-to-{min-start-Time, max-end-Time} map
         const users: { [userId: string]: { minTime: number; maxTime: number } } = {};
 
         // Populate the users map
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const userId = data.attributes["app.user.id"];
             if (userId) {
                 // Convert start and end times from [seconds, nanoseconds] to milliseconds
@@ -501,11 +518,15 @@ export class DTvMetric extends CompositeMetric {
      * @returns The average dwell time per visit.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.visit.id');
+        this._observations = population.length;
+
         // Initialize the visit-to-{min-start-Time, max-end-Time} map
         const visits: { [visitId: string]: { minTime: number; maxTime: number } } = {};
 
         // Populate the visits map
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const visitId = data.attributes["app.visit.id"];
             if (visitId) {
                 // Convert start and end times from [seconds, nanoseconds] to milliseconds
@@ -623,11 +644,15 @@ export class DTsMetric extends CompositeMetric {
      * @returns The average dwell time per session.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.session.id');
+        this._observations = population.length;
+
         // Initialize the session-to-{min-start-Time, max-end-Time} map
         const sessions: { [sessionId: string]: { minTime: number; maxTime: number } } = {};
 
         // Populate the sessions map
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const sessionId = data.attributes["app.session.id"];
             if (sessionId) {
                 // Convert start and end times from [seconds, nanoseconds] to milliseconds
@@ -746,11 +771,15 @@ export class NNCuMetric extends CompositeMetric {
      * @returns The average number of navigation clicks (_page views_) per user.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.user.id');
+        this._observations = population.length;
+
         // Initialize the user-to-clickCount map
         const userClicks: { [userId: string]: number } = {};
 
         // Populate the map and the set
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const userId = data.attributes["app.user.id"];
             if (userId) {
                 const eventType = data.attributes["event_type"];
@@ -867,11 +896,15 @@ export class NNCvMetric extends CompositeMetric {
      * @returns The average number of navigation clicks (_page views_) per visit
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.visit.id');
+        this._observations = population.length;
+
         // Initialize the visit-to-clickCount map
         const visitClicks: { [visitId: string]: number } = {};
 
         // Populate the map and the set
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const visitId = data.attributes["app.visit.id"];
             if (visitId) {
                 const eventType = data.attributes["event_type"];
@@ -988,11 +1021,15 @@ export class NNCsMetric extends CompositeMetric {
      * @returns The average number of navigation clicks (_page views_) per session
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.session.id');
+        this._observations = population.length;
+
         // Initialize the session-to-clickCount map and the set of unique sessions
         const sessionClicks: { [sessionId: string]: number } = {};
 
         // Populate the map and the set
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const sessionId = data.attributes["app.session.id"];
             if (sessionId) {
                 const eventType = data.attributes["event_type"];

@@ -79,6 +79,9 @@ export class OpenTelemetryWebAutomaticTracingOptions extends OpenTelemetryAutoma
          */
         userIdData = true,
 
+        /** Whether to attach resource attributes (ResourceNodeSpanProcessor). Default: true */
+        resourceData = true,
+
         /**
          * Configuration for user interaction events to be traced (e.g., clicks, form submissions).
          */
@@ -105,7 +108,7 @@ export class OpenTelemetryWebAutomaticTracingOptions extends OpenTelemetryAutoma
          */
         ajaxRequests = true,
     }) {
-        super({ appMetadata, userIdData });
+        super({ appMetadata, userIdData, ressourceData: resourceData });
         this.userInteractions = userInteractions;
         this.documentLoad = documentLoad;
         this.fetchApi = fetchApi;
@@ -176,6 +179,7 @@ export class OpenTelemetryNodeAutomaticTracingOptions extends OpenTelemetryAutom
          * Default: true
          */
         userIdData = true,
+        resourceData = true,
         amqplib = false,
         awsLambda = false,
         awsSdk = false,
@@ -212,7 +216,7 @@ export class OpenTelemetryNodeAutomaticTracingOptions extends OpenTelemetryAutom
         undici = false,
         winston = false,
     }) {
-        super({ appMetadata, userIdData });
+        super({ appMetadata, userIdData, ressourceData: resourceData });
         this.amqplib = amqplib;
         this.awsLambda = awsLambda;
         this.awsSdk = awsSdk;

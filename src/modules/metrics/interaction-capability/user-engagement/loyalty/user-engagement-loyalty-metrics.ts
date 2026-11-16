@@ -1,3 +1,4 @@
+import { identifiedInteractionSpans, interactionSpans } from "../user-engagement-population";
 import { ApplicationMetadata } from "../../../../../core/application/application-metadata";
 import { Goal, GoalMapper } from "../../../../../core/goals/goals";
 import { CompositeMetric, LeafMetric, Metric } from "../../../../../core/metrics/metrics-core";
@@ -45,11 +46,15 @@ export class ADMetric extends LeafMetric {
      * @returns The number of active days where users visited the app.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: user-interaction spans (user-engagement-population.ts)
+        const population = interactionSpans(telemetryData);
+        this._observations = population.length;
+
         // Initialize the set of days
         const daySet: Set<string> = new Set();
 
         // Populate the set of days
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const startMs = Utils.toMs(data.startTime);
             // Convert the timestamp to a date string (YYYY-MM-DD)
             const dateStr = new Date(startMs).toISOString().split('T')[0];
@@ -147,11 +152,15 @@ export class ADuMetric extends CompositeMetric {
      * @returns The average active days per user.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.user.id');
+        this._observations = population.length;
+
         // initialize the user-to-days map
         const userDays: { [userId: string]: Set<string> } = {};
 
         // Populate the user days map based on the telemetry data
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const userId = data.attributes["app.user.id"];
             if (userId) {
                 if (!userDays[userId]) {
@@ -271,11 +280,15 @@ export class RRMetric extends CompositeMetric {
      * @returns The return rate of users that revisited the app after their first visits.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.user.id', 'app.visit.id');
+        this._observations = population.length;
+
         // Initialize the user-to-visits map
         const userVisits: { [userId: string]: Set<string> } = {};
 
         // Populates the user visits map
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const userId = data.attributes["app.user.id"];
             const visitId = data.attributes["app.visit.id"];
             if (userId && visitId) {
@@ -395,11 +408,15 @@ export class DTRvMetric extends CompositeMetric {
      * @returns The average cumulative dwell time per user aggregated over visits.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.user.id', 'app.visit.id');
+        this._observations = population.length;
+
         // Initialize the user-to-{visit, totalDwellTime} map
         const userVisitDwell: { [userId: string]: { [visitId: string]: number } } = {};
 
         // Populate the user visits dwell map
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const userId = data.attributes["app.user.id"];
             const visitId = data.attributes["app.visit.id"];
             if (userId && visitId) {
@@ -524,11 +541,15 @@ export class DTRsMetric extends CompositeMetric {
      * @returns The average cumulative dwell time per user aggregated over sessions.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.user.id', 'app.session.id');
+        this._observations = population.length;
+
         // Initialize the user-to-{session, totalDwellTime} map
         const userSessionDwell: { [userId: string]: { [sessionId: string]: number } } = {};
 
         // Populate the user sessions dwell map
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const userId = data.attributes["app.user.id"];
             const sessionId = data.attributes["app.session.id"];
             if (userId && sessionId) {

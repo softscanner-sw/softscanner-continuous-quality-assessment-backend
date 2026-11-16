@@ -1,3 +1,4 @@
+import { identifiedInteractionSpans, interactionSpans } from "../user-engagement-population";
 import { ApplicationMetadata } from "../../../../../core/application/application-metadata";
 import { Goal, GoalMapper } from "../../../../../core/goals/goals";
 import { MetricsComputer } from "../../../../../core/metrics/metrics-computation";
@@ -43,9 +44,13 @@ export class NoUMetric extends LeafMetric {
      * @returns The number of unique, distinct users using the application
      */
     computeValue(telemetryData: any[]) {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.user.id');
+        this._observations = population.length;
+
         // Compute the number of users
         // from the unique values of the 'app.user.id' telemetry attribute
-        const nbUsers = MetricsComputer.uniqueCount(telemetryData, 'app.user.id');
+        const nbUsers = MetricsComputer.uniqueCount(population, 'app.user.id');
         this._value = nbUsers; // 0 when no identifier is observed
 
         return this._value;
@@ -128,9 +133,13 @@ export class NoVMetric extends LeafMetric {
      * @returns The number of user visits
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.visit.id');
+        this._observations = population.length;
+
         // Compute the number of visits
         // from the unique values of the 'app.visit.id' telemetry attribute
-        const nbVisits = MetricsComputer.uniqueCount(telemetryData, 'app.visit.id');
+        const nbVisits = MetricsComputer.uniqueCount(population, 'app.visit.id');
         this._value = nbVisits; // 0 when no identifier is observed
 
         return this._value;
@@ -213,9 +222,13 @@ export class NoSMetric extends LeafMetric {
      * @returns The number of user sessions
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.session.id');
+        this._observations = population.length;
+
         // Compute the number of sessions
         // from the unique values of the 'app.session.id' telemetry attribute
-        const nbSessions = MetricsComputer.uniqueCount(telemetryData, 'app.session.id');
+        const nbSessions = MetricsComputer.uniqueCount(population, 'app.session.id');
         this._value = nbSessions; // 0 when no identifier is observed
 
         return this._value;
@@ -306,11 +319,15 @@ export class NoVuMetric extends CompositeMetric {
      * @returns The average number of visits per user.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.user.id', 'app.visit.id');
+        this._observations = population.length;
+
         // Initialize the user-to-visitCount map
         const userVisits: { [userId: string]: Set<string> } = {};
 
         // Populate the map from the telemetry data
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const userId = data.attributes["app.user.id"];
             const visitId = data.attributes["app.visit.id"];
             if (userId && visitId) {
@@ -423,11 +440,15 @@ export class NoSuMetric extends CompositeMetric {
      * @returns The average number of sessions per user.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.user.id', 'app.session.id');
+        this._observations = population.length;
+
         // Initialize the user-to-sessionCount map
         const userSessions: { [userId: string]: Set<string> } = {};
 
         // Populate the map from the telemetry data
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const userId = data.attributes["app.user.id"];
             const sessionId = data.attributes["app.session.id"];
             if (userId && sessionId) {
@@ -540,11 +561,15 @@ export class NoSvMetric extends CompositeMetric {
      * @returns The average number of sessions per visit.
      */
     computeValue(telemetryData: any[]): number {
+        // Observation population: identified user-interaction spans (user-engagement-population.ts)
+        const population = identifiedInteractionSpans(telemetryData, 'app.visit.id', 'app.session.id');
+        this._observations = population.length;
+
         // Initialize the visit-to-sessionCount map
         const visitSessions: { [userId: string]: Set<string> } = {};
 
         // Populate the map from the telemetry data
-        telemetryData.forEach(data => {
+        population.forEach(data => {
             const visitId = data.attributes["app.visit.id"];
             const sessionId = data.attributes["app.session.id"];
             if (visitId && sessionId) {
