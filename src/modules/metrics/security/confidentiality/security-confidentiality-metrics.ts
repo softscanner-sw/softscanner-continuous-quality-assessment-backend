@@ -48,6 +48,7 @@ export class UnauthenticatedSQLModificationMetric extends LeafMetric {
             }
         });
 
+        this._observations = totalModifyingQueries;
         this._value = totalModifyingQueries === 0 ? 0 : unauthModifyingQueries / totalModifyingQueries;
         return this._value;
     }
@@ -63,7 +64,7 @@ export class UnauthenticatedSQLModificationMetricInterpreter extends MetricInter
         goal: Goal,
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -109,6 +110,7 @@ export class ScanAPIMetric extends LeafMetric {
                 susIP++;
             }
         }
+        this._observations = Object.values(requestsByIp).reduce((n, r) => n + r.count, 0);
         this._value = totalIP === 0 ? 0 : susIP / totalIP;
         return this._value;
     }
@@ -124,7 +126,7 @@ export class ScanAPIMetricInterpreter extends MetricInterpreter {
         goal: Goal,
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -167,6 +169,7 @@ export class XSSMetric extends LeafMetric {
             }
         }
 
+        this._observations = totalRequest;
         this._value = totalRequest === 0 ? 0 : (xssRequest / totalRequest)*100;
         return this._value;
 
@@ -183,7 +186,7 @@ export class XSSMetricInterpreter extends MetricInterpreter {
         goal: Goal,
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -226,7 +229,7 @@ export class AuthRefusedMetricInterpreter extends MetricInterpreter {
         goal: Goal,
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -264,6 +267,7 @@ export class SQLInjectionMetric extends LeafMetric {
                 }
             }
         })
+        this._observations = telemetryData.filter(data => data.attributes?.["db.statement"]).length;
         this._value = totalRequest === 0 ? 0 : sqlInjectionRequest/totalRequest;
         return this._value;
     }
@@ -279,7 +283,7 @@ export class SQLInjectionMetricInterpreter extends MetricInterpreter {
         goal: Goal,
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 

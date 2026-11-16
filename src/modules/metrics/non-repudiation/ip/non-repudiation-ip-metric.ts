@@ -73,7 +73,7 @@ export class IpInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.4
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -108,6 +108,7 @@ export class LoginSMetric extends LeafMetric {
         const totalResponses = loginOrAuthTraces.length;
 
         if (totalResponses === 0) {
+            this._value = 0;
             return 0; // Aucun enregistrement trouvé
         }
 
@@ -146,7 +147,7 @@ export class LoginSInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.4
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -207,6 +208,7 @@ export class LoginSSMetric extends LeafMetric {
 
         // Si aucune trace n'est trouvée, retourner 0
         if (totalAttempts === 0) {
+            this._value = 0;
             return 0;
         }
 
@@ -243,7 +245,7 @@ export class LoginSSInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.4
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 export class LoginEMetric extends LeafMetric {
@@ -278,6 +280,7 @@ export class LoginEMetric extends LeafMetric {
         const totalResponses = loginOrAuthTraces.length;
 
         if (totalResponses === 0) {
+            this._value = 0;
             return 0; // Aucun enregistrement trouvé
         }
 
@@ -316,7 +319,7 @@ export class LoginEInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.4
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -377,6 +380,7 @@ export class LoginESMetric extends LeafMetric {
 
         // Si aucune session n'est trouvée, retourner 0
         if (totalSessions === 0) {
+            this._value = 0;
             return 0;
         }
 
@@ -415,7 +419,7 @@ export class LoginESInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.4
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -467,12 +471,8 @@ export class LoginRatioMetric extends CompositeMetric {
     computeValue(telemetryData: any[]): number {
         const LoginS = this.children["LoginS"].computeValue(telemetryData);
         const LoginE = this.children["LoginE"].computeValue(telemetryData);
-        this._value = LoginS / LoginE
-        if (LoginE === 0) {
-            return this._value === 0 ? 0 : Infinity; // Si les deux sont zéro, retourner 0, sinon Infinity (indiquant un succès parfait)
-        }
-
-        this._value = LoginS / LoginE;
+        // 0 when no failed login is observed (previously NaN for 0/0 and Infinity otherwise)
+        this._value = LoginE > 0 ? LoginS / LoginE : 0;
         return this._value;
     }
 
@@ -510,7 +510,7 @@ export class LoginRatioInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.3
         baseWeight = 0.3
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 /**
@@ -561,12 +561,8 @@ export class LoginSRatioMetric extends CompositeMetric {
     computeValue(telemetryData: any[]): number {
         const LoginS = this.children["LoginSS"].computeValue(telemetryData);
         const LoginE = this.children["LoginES"].computeValue(telemetryData);
-        this._value = LoginS / LoginE
-        if (LoginE === 0) {
-            return this._value === 0 ? 0 : Infinity; // Si les deux sont zéro, retourner 0, sinon Infinity (indiquant un succès parfait)
-        }
-
-        this._value = LoginS / LoginE;
+        // 0 when no failed login is observed (previously NaN for 0/0 and Infinity otherwise)
+        this._value = LoginE > 0 ? LoginS / LoginE : 0;
         return this._value;
     }
 
@@ -604,7 +600,7 @@ export class LoginSRatioInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.3
         baseWeight = 0.3
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 

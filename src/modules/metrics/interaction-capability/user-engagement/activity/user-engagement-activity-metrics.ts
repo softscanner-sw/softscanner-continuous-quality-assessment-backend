@@ -71,8 +71,7 @@ export class UIFuMetric extends CompositeMetric {
         const nbUsers = this.children['NoU'].computeValue(telemetryData);
 
         // Use the total number of interactions and the NoU to compute the value of UIFu
-        if (nbUsers > 0)
-            this._value = totalInteractions / nbUsers;
+        this._value = nbUsers > 0 ? totalInteractions / nbUsers : 0; // 0 when the denominator is empty
 
         return this._value;
     }
@@ -181,8 +180,7 @@ export class UIFvMetric extends CompositeMetric {
         const nbVisits = this.children['NoV'].computeValue(telemetryData);
 
         // Use the total number of interactions and the NoV to compute the value of UIFv
-        if (nbVisits > 0)
-            this._value = totalInteractions / nbVisits;
+        this._value = nbVisits > 0 ? totalInteractions / nbVisits : 0; // 0 when the denominator is empty
 
         return this._value;
     }
@@ -291,8 +289,7 @@ export class UIFsMetric extends CompositeMetric {
         const nbSessions = this.children['NoS'].computeValue(telemetryData);
 
         // Use the total number of interactions and the NoS to compute the value of UIFs
-        if (nbSessions > 0)
-            this._value = totalInteractions / nbSessions;
+        this._value = nbSessions > 0 ? totalInteractions / nbSessions : 0; // 0 when the denominator is empty
 
         return this._value;
     }

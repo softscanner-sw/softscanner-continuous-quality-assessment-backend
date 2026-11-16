@@ -46,8 +46,7 @@ export class NoUMetric extends LeafMetric {
         // Compute the number of users
         // from the unique values of the 'app.user.id' telemetry attribute
         const nbUsers = MetricsComputer.uniqueCount(telemetryData, 'app.user.id');
-        if (nbUsers > 0)
-            this._value = nbUsers;
+        this._value = nbUsers; // 0 when no identifier is observed
 
         return this._value;
     }
@@ -132,8 +131,7 @@ export class NoVMetric extends LeafMetric {
         // Compute the number of visits
         // from the unique values of the 'app.visit.id' telemetry attribute
         const nbVisits = MetricsComputer.uniqueCount(telemetryData, 'app.visit.id');
-        if (nbVisits > 0)
-            this._value = nbVisits;
+        this._value = nbVisits; // 0 when no identifier is observed
 
         return this._value;
     }
@@ -218,8 +216,7 @@ export class NoSMetric extends LeafMetric {
         // Compute the number of sessions
         // from the unique values of the 'app.session.id' telemetry attribute
         const nbSessions = MetricsComputer.uniqueCount(telemetryData, 'app.session.id');
-        if (nbSessions > 0)
-            this._value = nbSessions;
+        this._value = nbSessions; // 0 when no identifier is observed
 
         return this._value;
     }

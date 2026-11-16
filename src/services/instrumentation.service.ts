@@ -59,10 +59,14 @@ export class InstrumentationService implements IProgressTrackable {
         // Inject the generated bundle into the project.
         console.log('Instrumentation service: Injecting instrumentation bundle...');
         this.progressTracker.notifyProgress('Instrumentation service: Injecting instrumentation bundle...');
-        await this._bundleInjector.injectBundle(appMetadata, bundle);
+        // Throws (and thus aborts the assessment) if any injection stage fails
+        const report = await this._bundleInjector.injectBundle(appMetadata, bundle);
+        const summary = `bundle ${report.copy}, entry point ${report.entryPoint}` +
+            (report.replacedReferences.length ? ` (replaced ${report.replacedReferences.join(', ')})` : '') +
+            `, injection verified; runtime activation is confirmed only when the application's telemetry reaches the collector`;
 
-        console.log('Instrumentation service: Instrumentation bundle injection completed successfully!');
-        this.progressTracker.notifyProgress('Instrumentation service: Instrumentation bundle injection completed successfully!');
+        console.log(`Instrumentation service: Instrumentation bundle injection completed: ${summary}`);
+        this.progressTracker.notifyProgress(`Instrumentation service: Instrumentation bundle injection completed: ${summary}`);
         return bundle.path!!;
     }
 }

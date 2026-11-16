@@ -64,7 +64,7 @@ export class ISOIEC25010 extends QualityModel {
         this.addSubGoal(operability, interactionCapability);
 
         /* User Error Protection */
-        const userErrorProtection = new LeafGoal('User Error Protection', 'The degree to which the software is user-friendly and controllable', undefined, 1);
+        const userErrorProtection = new LeafGoal('User Error Protection', 'The degree to which the software prevents users from making operation errors', undefined, 1);
         this.addSubGoal(userErrorProtection, interactionCapability);
 
         /* User Engagement */
@@ -87,7 +87,7 @@ export class ISOIEC25010 extends QualityModel {
         const userEngagement = new CompositeGoal('User Engagement', 'The degree to which the software presents functions and information in an inviting and motivating manner encouraging continued interaction', undefined, 1);
 
         /* Popularity */
-        const popularity = new LeafGoal('Popularity', 'The degreee to which the software is popular among its users', undefined, 1);
+        const popularity = new LeafGoal('Popularity', 'The degree to which the software is popular among its users', undefined, 1);
         this.addSubGoal(popularity, userEngagement);
 
         /* Activity */
@@ -186,7 +186,7 @@ export class ISOIEC25010 extends QualityModel {
         this.addSubGoal(faultTolerance, reliability);
 
         /* Recoverability */
-        const recoverability = new LeafGoal('Recoverability', "The degree to which the software operates as intended despite hardware or software faults", reliability, 1);
+        const recoverability = new LeafGoal('Recoverability', "The degree to which the software, in the event of an interruption or a failure, can recover the directly affected data and re-establish the desired state of the system", reliability, 1);
         this.addSubGoal(recoverability, reliability);
     }
 

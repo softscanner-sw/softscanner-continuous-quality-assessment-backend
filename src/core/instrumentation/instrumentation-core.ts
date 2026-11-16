@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import * as path from "path";
+import { InjectionReport, InstrumentationInjectionError, planHtmlInjection, scriptSources } from "./instrumentation-injection";
 import { ApplicationMetadata } from "../application/application-metadata";
 import { Metric } from "../metrics/metrics-core";
 import { TelemetryConfig, TelemetryType } from "../telemetry/telemetry";
@@ -397,8 +398,17 @@ export class DefaultInstrumentationBundler extends InstrumentationBundler {
  * Abstract class to define a blueprint for bundle injection into different types of applications.
  * It provides a structured process to inject an instrumentation bundle into a target application,
  * accommodating for custom pre and post injection steps.
+ *
+ * The process validates every precondition before the application is modified, is idempotent for the
+ * same bundle, and reports each stage separately (see {@link InjectionReport}). Any failure raises an
+ * {@link InstrumentationInjectionError}; a failed injection is never reported as successful.
  */
 export abstract class InstrumentationBundleInjector {
+    /** Human-readable label used in log messages (e.g., "Angular"). */
+    protected label: string = "Instrumentation";
+
+    /** The report of the last call to {@link process}. */
+    protected report!: InjectionReport;
 
     /**
      * Constructor to initialize the bundle injector.
@@ -412,21 +422,97 @@ export abstract class InstrumentationBundleInjector {
         protected bundleDestinationParentPath: string = "", // The destination folder path in the application where the bundle will be placed.
     ) { }
 
-    /**
-     * Template method to process the bundle injection.
-     * Orchestrates the injection process by calling methods in a specific sequence.
-     */
-    public async process() {
-        await this.preInject();
-        await this.inject();
-        await this.postInject();
+    /** Absolute path of the deployed copy of the bundle inside the application. */
+    protected get deployedBundlePath(): string {
+        return path.join(this.bundleDestinationParentPath, this.bundle.fileName);
+    }
+
+    /** Prefix shared by all bundles generated for this application (`<normalizedName>_`). */
+    protected get bundleAppPrefix(): string {
+        return AbstractInstrumentationBundle.extractNormalizedAppNameFromBundle(this.bundle.fileName);
     }
 
     /**
-     * Method to define actions to be performed before injection.
+     * Template method to process the bundle injection.
+     * Orchestrates the injection process by calling methods in a specific sequence:
+     * validation (no modification), pre-injection (bundle copy), injection (entry point), post-injection (verification).
+     * @returns The injection report.
+     */
+    public async process(): Promise<InjectionReport> {
+        this.report = {
+            technology: this.application.technology,
+            bundleFileName: this.bundle.fileName,
+            generated: false,
+            copy: 'unchanged',
+            deployedBundlePath: this.deployedBundlePath,
+            entryPointPath: '',
+            entryPoint: 'already-present',
+            replacedReferences: [],
+            verified: false,
+        };
+        this.validateBundle();
+        await this.validateEntryPoint();
+        await this.preInject();
+        await this.inject();
+        await this.postInject();
+        return this.report;
+    }
+
+    /**
+     * Checks that the generated bundle exists. Does not modify the application.
+     */
+    protected validateBundle(): void {
+        if (!this.bundle.path || !existsSync(this.bundle.path)) {
+            throw new InstrumentationInjectionError(
+                `${this.label} Instrumentation Bundle Injector: generated bundle not found: ${this.bundle.path}`, 'BUNDLE_MISSING');
+        }
+        this.report.generated = true;
+    }
+
+    /**
+     * Copies the generated bundle into the application. If a byte-identical copy is already deployed,
+     * the file is left untouched (idempotent).
+     */
+    protected async copyBundle(): Promise<void> {
+        const destination = this.deployedBundlePath;
+        const source = readFileSync(this.bundle.path!);
+        if (existsSync(destination) && readFileSync(destination).equals(source)) {
+            this.report.copy = 'unchanged';
+            console.log(`${this.label} Instrumentation Bundle Injector: identical bundle already deployed at ${destination}`);
+            return;
+        }
+        mkdirSync(this.bundleDestinationParentPath, { recursive: true });
+        copyFileSync(this.bundle.path!, destination);
+        this.report.copy = 'copied';
+        console.log(`${this.label} Instrumentation Bundle Injector: copied the bundle to ${destination}`);
+    }
+
+    /**
+     * Checks that the deployed bundle is byte-identical to the generated one.
+     */
+    protected verifyDeployedBundle(): void {
+        if (!existsSync(this.deployedBundlePath) ||
+            !readFileSync(this.deployedBundlePath).equals(readFileSync(this.bundle.path!))) {
+            throw new InstrumentationInjectionError(
+                `${this.label} Instrumentation Bundle Injector: deployed bundle missing or different from the generated bundle: ${this.deployedBundlePath}`,
+                'VERIFICATION_FAILED');
+        }
+    }
+
+    /**
+     * Validates the application entry point before any modification.
      * To be implemented by subclasses based on specific needs.
      */
-    protected abstract preInject(): Promise<void>;
+    protected abstract validateEntryPoint(): Promise<void>;
+
+    /**
+     * Method to define actions to be performed before injection.
+     * By default, copies the bundle into the application.
+     */
+    protected async preInject(): Promise<void> {
+        console.log(`${this.label} Instrumentation Bundle Injector: Preparing for bundle injection...`);
+        await this.copyBundle();
+    }
 
     /**
      * Method to define bundle injection into the target web application.
@@ -436,7 +522,7 @@ export abstract class InstrumentationBundleInjector {
 
     /**
      * Method to define actions to be performed after injection.
-     * To be implemented by subclasses based on specific needs.
+     * To be implemented by subclasses based on specific needs (verification of the injection).
      */
     protected abstract postInject(): Promise<void>;
 }
@@ -458,34 +544,56 @@ export abstract class FrontendInstrumentationBundleInjector extends Instrumentat
         super(application, bundle, bundleDestinationParentPath);
     }
 
+    /** `src` of the script element, relative to the HTML page, with forward slashes. */
+    protected get scriptSrc(): string {
+        return path.relative(path.dirname(this.targetHTMLPagePath), this.deployedBundlePath).replace(/\\/g, '/');
+    }
+
+    /** Folder of the bundles, relative to the HTML page, with forward slashes. */
+    protected get scriptDir(): string {
+        return path.relative(path.dirname(this.targetHTMLPagePath), this.bundleDestinationParentPath).replace(/\\/g, '/');
+    }
+
     /**
-     * Injects the bundle into the target HTML page of the frontend app by appending a <script> tag.
-     * This default implementation can be overridden by subclasses if needed.
+     * Checks that the HTML page exists and has a supported insertion point (dry run, no modification).
+     */
+    protected async validateEntryPoint(): Promise<void> {
+        this.report.entryPointPath = this.targetHTMLPagePath;
+        if (!existsSync(this.targetHTMLPagePath)) {
+            throw new InstrumentationInjectionError(
+                `${this.label} Instrumentation Bundle Injector: target HTML page does not exist: ${this.targetHTMLPagePath}`,
+                'ENTRY_POINT_MISSING');
+        }
+        planHtmlInjection(readFileSync(this.targetHTMLPagePath, 'utf8'), this.scriptSrc, this.scriptDir, this.bundleAppPrefix);
+    }
+
+    /**
+     * Injects the bundle into the target HTML page by inserting a <script> element before </body>
+     * (or </html> when </body> is omitted). Idempotent; see {@link planHtmlInjection}.
      */
     protected async inject(): Promise<void> {
-        if (!existsSync(this.targetHTMLPagePath)) {
-            console.error(`Frontend Instrumentation Bundle Injector: Target HTML page does not exist: ${this.targetHTMLPagePath}`);
-            return;
+        const html = readFileSync(this.targetHTMLPagePath, 'utf8');
+        const plan = planHtmlInjection(html, this.scriptSrc, this.scriptDir, this.bundleAppPrefix);
+        if (plan.status !== 'already-present') writeFileSync(this.targetHTMLPagePath, plan.updated);
+        this.report.entryPoint = plan.status;
+        this.report.replacedReferences = plan.replacedReferences;
+        console.log(`${this.label} Instrumentation Bundle Injector: entry point ${this.targetHTMLPagePath}: ${plan.status} (${this.scriptSrc})`);
+    }
+
+    /**
+     * Verifies that the page references the deployed bundle exactly once and that the deployed bundle
+     * is identical to the generated one.
+     */
+    protected async postInject(): Promise<void> {
+        const references = scriptSources(readFileSync(this.targetHTMLPagePath, 'utf8')).filter(src => src === this.scriptSrc).length;
+        if (references !== 1) {
+            throw new InstrumentationInjectionError(
+                `${this.label} Instrumentation Bundle Injector: expected exactly one reference to ${this.scriptSrc} in ${this.targetHTMLPagePath}, found ${references}`,
+                'VERIFICATION_FAILED');
         }
-
-        // Compute the relative path from the target HTML page to the bundle
-        const relativePathToBundle = path.relative(path.dirname(this.targetHTMLPagePath), path.join(this.bundleDestinationParentPath, this.bundle.fileName));
-
-        // Convert backslashes to forward slashes for cross-platform compatibility in HTML
-        const scriptPath = relativePathToBundle.replace(/\\/g, '/');
-
-        console.log(`Frontend Instrumentation Bundle Injector: Relative path for injection: ${scriptPath}`);
-
-        // Preparing the <script> element to inject
-        const bundleScriptTag = `<script src="${scriptPath}"></script>`;
-
-        // Read and update the target HTML page's content by appending the script to <body>'s content
-        const htmlContent = readFileSync(this.targetHTMLPagePath, 'utf8');
-        const updatedHtmlContent = htmlContent.replace('</body>', `${bundleScriptTag}</body>`);
-
-        // Write updates to the file
-        writeFileSync(this.targetHTMLPagePath, updatedHtmlContent);
-        console.log(`Frontend Instrumentation Bundle Injector: Instrumentation bundle injected successfully into ${this.targetHTMLPagePath}`);
+        this.verifyDeployedBundle();
+        this.report.verified = true;
+        console.log(`${this.label} Instrumentation Bundle Injector: Finished bundle injection (verified).`);
     }
 }
 

@@ -28,6 +28,7 @@ export class MemoryMetric extends LeafMetric {
         const tracememory = telemetryData.filter(data => data.attributes["app.system.memory"]);
 
         // Si aucune trace de mémoire n'est trouvée, retourner 0
+        this._observations = tracememory.length;
         if (tracememory.length === 0) {
             this._value = 0;
             return this._value;
@@ -80,7 +81,7 @@ export class MemoryInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.4
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -107,6 +108,7 @@ export class CpuUsageMetric extends LeafMetric {
         const tracememory = telemetryData.filter(data => data.attributes["app.system.cpuusage"]);
 
         // Si aucune trace de mémoire n'est trouvée, retourner 0
+        this._observations = tracememory.length;
         if (tracememory.length === 0) {
             this._value = 0;
             return this._value;
@@ -158,7 +160,7 @@ export class CpuUsageInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.4
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 export class CpuTimeUsageMetric extends LeafMetric {
@@ -184,6 +186,7 @@ export class CpuTimeUsageMetric extends LeafMetric {
         const tracememory = telemetryData.filter(data => data.attributes["app.system.cputime"]);
 
         // Si aucune trace de mémoire n'est trouvée, retourner 0
+        this._observations = tracememory.length;
         if (tracememory.length === 0) {
             this._value = 0;
             return this._value;
@@ -236,7 +239,7 @@ export class CpuTimeUsageInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.4
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -345,7 +348,7 @@ export class NetworkInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.4
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -373,6 +376,7 @@ export class LoadavgMetric extends LeafMetric {
             data.attributes["app.system.loadavg"] && data.attributes["app.system.core"]
         );
 
+        this._observations = traceLoadAvg.length;
         if (traceLoadAvg.length === 0) {
             this._value = 0;
             return this._value;
@@ -439,7 +443,7 @@ export class loadavgInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.4
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 export class UptimeMetric extends LeafMetric {
@@ -518,7 +522,7 @@ export class UptimeInterpreter extends MetricInterpreter {
         goal: Goal,
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 /**

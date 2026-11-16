@@ -8,6 +8,7 @@ import { TelemetryType } from "../telemetry/telemetry";
 export abstract class Metric {
     protected _value: any;  // Holds the computed value of the metric.
     protected _history: MetricHistory = [];  // Tracks historical values of the metric.
+    protected _observations?: number;  // Number of qualifying observations of the last computation (undefined if not reported).
 
     /**
      * Constructs a new `Metric` instance.
@@ -55,6 +56,15 @@ export abstract class Metric {
     }
 
     /**
+     * Number of qualifying observations (e.g., HTTP spans with a duration) used by the last computation,
+     * or `undefined` when the metric does not report it. A metric with 0 observations has no evidence:
+     * its normalized value is 0 whatever its polarity (see MetricInterpreter.interpretDetailed).
+     */
+    get observations(): number | undefined {
+        return this._observations;
+    }
+
+    /**
     * Checks if the metric requires a specific type of telemetry.
     * @param telemetryType - The type of telemetry to check.
     * @returns true if the telemetry type is required, false otherwise.
@@ -87,6 +97,7 @@ export abstract class Metric {
      */
     resetValue(): void {
         this._value = undefined;
+        this._observations = undefined;
     }
 
     abstract isComposite(): boolean;
@@ -144,6 +155,15 @@ export abstract class CompositeMetric extends Metric {
 
     isComposite(): boolean {
         return true;
+    }
+
+    /**
+     * Resets the metric and, recursively, its child metrics, so that a recomputation never reuses
+     * a child value computed from a previous telemetry set.
+     */
+    resetValue(): void {
+        super.resetValue();
+        Object.values(this.children).forEach(child => child.resetValue());
     }
 
     accept(visitor: MetricVisitor): any {

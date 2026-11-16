@@ -3,6 +3,7 @@ import { NodeInstrumentationBundleInjector } from "../../modules/instrumentation
 import { ReactInstrumentationBundleInjector } from "../../modules/instrumentation/react/react-bundle-injector";
 import { ApplicationMetadata } from "../application/application-metadata";
 import { InstrumentationBundle, InstrumentationBundleInjector } from "./instrumentation-core";
+import { InjectionReport, InstrumentationInjectionError } from "./instrumentation-injection";
 
 /**
  * The `BundleInjector` class is responsible for injecting a generated instrumentation bundle
@@ -17,34 +18,33 @@ export class BundleInjector {
      * 
      * @param appMetadata Metadata of the application, including its technology (Angular, React, etc.).
      * @param bundle The instrumentation bundle that contains the generated files to be injected.
-     * @returns A promise that resolves when the injection process completes.
+     * @returns The injection report (bundle generated, copied, entry point modified, verified).
+     * @throws InstrumentationInjectionError if the technology is unsupported or any injection stage fails.
      */
-    public async injectBundle(appMetadata: ApplicationMetadata, bundle: InstrumentationBundle): Promise<void> {
+    public async injectBundle(appMetadata: ApplicationMetadata, bundle: InstrumentationBundle): Promise<InjectionReport> {
         console.log('Instrumentation Bundle Injector: Injecting instrumentation bundle...');
 
-        // Determine the technology of the application (Angular or React)
+        // Determine the technology of the application (Angular, React or Node.js)
         const technology = appMetadata.technology.toLowerCase();
         let injector: InstrumentationBundleInjector | null = null;
 
         // Choose the appropriate injector based on the application's technology
         if (technology.includes('angular')) {
-            // Create an instance of the Angular bundle injector
             injector = new AngularInstrumentationBundleInjector(appMetadata, bundle);
         } else if (technology.includes('react')) {
-            // Create an instance of the React bundle injector
             injector = new ReactInstrumentationBundleInjector(appMetadata, bundle);
         } else if (technology.includes('node')) {
-            // Create an instance of the Node bundle injector
             injector = new NodeInstrumentationBundleInjector(appMetadata, bundle);
         }
 
-        if (injector) {
-            // Execute the injection process using the chosen injector
-            await injector.process();
-            console.log('Instrumentation Bundle Injector: Instrumentation bundle injected successfully!');
-        } else {
-            // Log a warning if no suitable injector is found for the specified technology
-            console.warn('Instrumentation Bundle Injector: Instrumentation bundle injection failed... Instrumentation Bundle Injector is undefined');
+        if (!injector) {
+            throw new InstrumentationInjectionError(
+                `Instrumentation Bundle Injector: no injector for technology "${appMetadata.technology}"`, 'UNSUPPORTED_TECHNOLOGY');
         }
+
+        // Execute the injection process using the chosen injector (throws on any failure)
+        const report = await injector.process();
+        console.log(`Instrumentation Bundle Injector: bundle ${report.copy}, entry point ${report.entryPoint}, verified=${report.verified}`);
+        return report;
     }
 }

@@ -1,5 +1,39 @@
 import { CompositeGoal, Goal, GoalVisitor, LeafGoal } from "../goals/goals";
+import { MetricPolarity, semanticsOf } from "./metric-semantics";
 import { CompositeMetric, LeafMetric, Metric, MetricVisitor } from "./metrics-core";
+
+/**
+ * Origin of the initial benchmark b0 of a metric:
+ * - `configured-default`: a value set in the interpreter (a configuration default, not a validated reference);
+ * - `definitional-bound`: the definitional maximum of a bounded value (ratio 1, percentage 100);
+ * - `none`: no initial benchmark (b0 = 0); the benchmark is the largest value observed so far.
+ */
+export type BenchmarkKind = 'configured-default' | 'definitional-bound' | 'none';
+
+/**
+ * Result of the interpretation of one metric value.
+ */
+export interface MetricInterpretation {
+    normalized: number;          // v in [0, 1]
+    raw: number;                 // m, the computed metric value
+    benchmark: number;           // b, the benchmark used for this interpretation
+    initialBenchmark: number;    // b0
+    benchmarkKind: BenchmarkKind;
+    polarity: MetricPolarity;
+    observed: boolean;           // false when the metric reported 0 qualifying observations
+    observations?: number;
+}
+
+/**
+ * Raised when a metric value or benchmark cannot be interpreted (non-finite value or benchmark).
+ * Such a failure is an error of the assessment cycle; it is never turned into a score of 0.
+ */
+export class MetricInterpretationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'MetricInterpretationError';
+    }
+}
 
 /**
  * Abstract class representing a metric interpreter.
@@ -32,16 +66,45 @@ export abstract class MetricInterpreter implements GoalVisitor, MetricVisitor {
         protected goal: Goal,
 
         /**
-         * The maximum value to normalize the metric value during interpretation.
+         * The initial benchmark b0 used to normalize the metric value during interpretation.
+         * When undefined, the definitional bound of the metric is used if it has one, otherwise 0 (none).
          */
-        protected _maxValue: any,
+        protected _maxValue?: number,
 
         /**
          * The base weight assigned by the interpreter for the metric during interpretation
          */
         protected baseWeight: number = 1,
     ) {
+        const bound = semanticsOf(metric.acronym).bound;
+        if (typeof _maxValue === 'number' && Number.isFinite(_maxValue) && _maxValue >= 0) {
+            this.initialBenchmark = _maxValue;
+            this.benchmarkKind = 'configured-default';
+        } else if (typeof bound === 'number') {
+            this.initialBenchmark = bound;
+            this.benchmarkKind = 'definitional-bound';
+        } else {
+            this.initialBenchmark = 0;
+            this.benchmarkKind = 'none';
+        }
+        this._maxValue = this.initialBenchmark;
+    }
 
+    /** The initial benchmark b0 of the metric. */
+    readonly initialBenchmark: number;
+
+    /** The origin of b0. */
+    readonly benchmarkKind: BenchmarkKind;
+
+    /** The polarity of the metric (see metric-semantics.ts). */
+    get polarity(): MetricPolarity {
+        return semanticsOf(this.metric.acronym).polarity;
+    }
+
+    /** False when the metric reported 0 qualifying observations in its last computation. */
+    get observed(): boolean {
+        const n = this.metric.observations;
+        return n === undefined || n > 0;
     }
 
     /**
@@ -52,26 +115,69 @@ export abstract class MetricInterpreter implements GoalVisitor, MetricVisitor {
     }
 
     /**
-     * Interprets the metric's value by normalizing it against the maximum value.
-     * @returns The normalized metric value.
+     * Interprets the metric's value by normalizing it against its benchmark.
+     * @param benchmark The benchmark b to use (resolved by the assessment cycle for its benchmark scope).
+     *                  When omitted, b = max(b0, values in the metric's history) (behaviour before Pass 23).
+     * @returns The normalized metric value in [0, 1].
      */
-    interpret(): number {
-        // Update the maxValue dynamically based on the metric's history
-        this.updateMaxValue();
+    interpret(benchmark?: number): number {
+        return this.interpretDetailed(benchmark).normalized;
+    }
 
-        // Normalize the metric value using the current maxValue
-        return this.metric.value / this._maxValue;
+    /**
+     * Normalizes the metric value m against the benchmark b, taking the metric polarity into account:
+     *
+     *   r = min(1, max(0, m / b))                 if b > 0
+     *   r = (m > 0 ? 1 : 0)                       if b = 0 (no benchmark and nothing observed above 0)
+     *   v = r          for higher-is-better and unspecified metrics
+     *   v = 1 - r      for lower-is-better metrics
+     *   v = 0          when the metric reported 0 qualifying observations (no evidence), whatever its polarity
+     *
+     * With b = max(b0, largest m observed in the benchmark scope), m <= b and r = m / b, so higher-is-better
+     * values are unchanged with respect to the previous v = m / b. Non-finite m or b raise
+     * MetricInterpretationError.
+     */
+    interpretDetailed(benchmark?: number): MetricInterpretation {
+        const raw = this.metric.value;
+        if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+            throw new MetricInterpretationError(`Metric ${this.metric.acronym} has a non-finite value: ${raw}`);
+        }
+
+        let b: number;
+        if (benchmark === undefined) {
+            // Update the benchmark dynamically based on the metric's history (behaviour before Pass 23)
+            this.updateMaxValue();
+            b = this._maxValue!;
+        } else {
+            b = benchmark;
+        }
+        if (typeof b !== 'number' || !Number.isFinite(b) || b < 0) {
+            throw new MetricInterpretationError(`Metric ${this.metric.acronym} has an invalid benchmark: ${b}`);
+        }
+
+        const polarity = this.polarity;
+        const observed = this.observed;
+        let normalized: number;
+        if (!observed) {
+            normalized = 0;
+        } else {
+            const r = b > 0 ? Math.min(1, Math.max(0, raw / b)) : (raw > 0 ? 1 : 0);
+            normalized = polarity === 'lower-is-better' ? 1 - r : r;
+        }
+
+        return {
+            normalized, raw, benchmark: b,
+            initialBenchmark: this.initialBenchmark, benchmarkKind: this.benchmarkKind,
+            polarity, observed, observations: this.metric.observations,
+        };
     }
 
     /**
      * Updates the maximum value dynamically based on the metric's historical values.
      */
     private updateMaxValue(): void {
-        const maxHistoricalValue = Math.max(
-            ...this.metric.history.map(entry => entry.value),
-            this._maxValue
-        );
-        this._maxValue = maxHistoricalValue;
+        const values = this.metric.history.map(entry => entry.value).filter(v => typeof v === 'number' && Number.isFinite(v));
+        this._maxValue = Math.max(...values, this._maxValue ?? 0);
     }
 
     /**

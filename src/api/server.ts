@@ -5,7 +5,8 @@ import { AssessmentContext } from '../core/assessment/assessment-core';
 import { Goal } from '../core/goals/goals';
 import { InstrumentationService } from '../services/instrumentation.service';
 import { ProgressTracker } from '../services/progress-tracker.service';
-import { QualityAssessmentService } from '../services/quality-assessment.service';
+import { AssessmentCycleEvent, QualityAssessmentService } from '../services/quality-assessment.service';
+import { buildAssessmentEventData } from './assessment-events';
 import { QualityModelService } from '../services/quality-model.service';
 import { TelemetryService } from '../services/telemetry.service';
 
@@ -26,15 +27,20 @@ const progressTracker = new ProgressTracker();
 const modelService = new QualityModelService();            // Handles the quality model and goals
 const instrumentationService = new InstrumentationService(); // Handles code instrumentation
 const telemetryService = new TelemetryService();             // Handles telemetry collection
-const qualityAssessmentService = new QualityAssessmentService(); // Manages quality assessment processes
 
 // Pass the shared progress tracker to all services for consistent progress updates
 instrumentationService.setProgressTracker(progressTracker);
 telemetryService.setProgressTracker(progressTracker);
-qualityAssessmentService.setProgressTracker(progressTracker);
 
 // Store assessment contexts in memory, indexed by a unique assessment ID
 const assessmentContextStore: Record<string, AssessmentContext> = {};
+
+// One quality assessment service per assessment (application + bundle), so that concurrent assessments
+// do not overwrite each other's context and each assessment stream only carries its own assessments.
+const assessmentServices: Record<string, QualityAssessmentService> = {};
+
+// Lifecycle state of each assessment (the HTTP response is sent before instrumentation starts)
+const assessmentStates: Record<string, { status: 'instrumenting' | 'assessing' | 'failed', error?: string, lastCycle?: AssessmentCycleEvent }> = {};
 
 
 /**
@@ -99,6 +105,12 @@ app.post('/api/assessment', async (req: Request, res: Response) => {
 
     // Store the assessment context (metadata and goals) for future use
     assessmentContextStore[assessmentId] = { metadata: appMetadata, selectedGoals: goals };
+    const qualityAssessmentService = new QualityAssessmentService(); // Manages this assessment
+    qualityAssessmentService.setProgressTracker(progressTracker);
+    assessmentServices[assessmentId] = qualityAssessmentService;
+    assessmentStates[assessmentId] = { status: 'instrumenting' };
+    qualityAssessmentService.onAssessmentUpdated((_goals, event) => { assessmentStates[assessmentId].lastCycle = event; });
+    qualityAssessmentService.onAssessmentFailed(event => { assessmentStates[assessmentId].lastCycle = event; });
 
     // Send an immediate response with the assessment ID and progress endpoints
     res.status(202).send({
@@ -119,18 +131,36 @@ app.post('/api/assessment', async (req: Request, res: Response) => {
 
             // Step 3: Configure the quality assessment service with the current context
             qualityAssessmentService.setContext({ appMetadata, bundleName }, goals, collector);
+            assessmentStates[assessmentId].status = 'assessing';
 
-            // Step 4: Start the quality assessment process
+            // Step 4: Start the quality assessment process (resolves after the first completed assessment cycle)
             await qualityAssessmentService.assessQualityGoals();
 
             // Notify progress completion
-            progressTracker.notifyProgress('Server: Assessment process completed successfully.');
+            progressTracker.notifyProgress('Server: First assessment cycle completed successfully.');
         } catch (error: any) {
+            // The HTTP response (202) has already been sent: report the failure through the
+            // progress stream, the assessment stream and the status endpoint.
             console.error('Server: Error during assessment:', error);
+            assessmentStates[assessmentId].status = 'failed';
+            assessmentStates[assessmentId].error = error.message;
             progressTracker.notifyProgress(`Server: Assessment process failed: ${error.message}`);
-            res.status(500).send({ error: `Server: Assessment process failed: ${error.message}` });
         }
     })();
+});
+
+/**
+ * GET /api/assessment-status
+ * Returns the lifecycle state of an assessment and the outcome of its last assessment cycle.
+ */
+app.get('/api/assessment-status', (req: Request, res: Response) => {
+    const { assessmentId } = req.query;
+    const state = assessmentStates[assessmentId as string];
+    if (!assessmentId || !state) {
+        res.status(400).send({ error: 'Invalid or expired assessment ID' });
+        return;
+    }
+    res.json({ assessmentId, ...state });
 });
 
 /**
@@ -185,38 +215,24 @@ app.get('/api/assessments', (req: Request, res: Response) => {
     res.setHeader('Connection', 'keep-alive');
 
     const context = assessmentContextStore[assessmentId as string];
+    const service = assessmentServices[assessmentId as string];
 
-    // Subscribe to assessment updates
-    qualityAssessmentService.onAssessmentUpdated((updatedGoals) => {
-        const responseData = {
-            metadata: context.metadata,
-            selectedGoals: updatedGoals.map(goal => ({
-                name: goal.name,
-                description: goal.description,
-                weight: goal.weight,
-                parent: goal.parent,
-                metrics: Array.from(goal.metrics).map(metric => ({
-                    name: metric.name,
-                    acronym: metric.acronym,
-                    description: metric.description,
-                    value: metric.value,
-                    unit: metric.unit,
-                    history: metric.history
-                })),
-                assessments: goal.assessments.map(assessment => ({
-                    timestamp: assessment.timestamp,
-                    globalScore: assessment.globalScore,
-                    details: assessment.assessments
-                }))
-            }))
-        };
-
-        res.write(`data: ${JSON.stringify(responseData)}\n\n`);
-    });
+    // Subscribe to this assessment's completed cycles (default SSE "message" events, read by the dashboard)
+    const onUpdate = (updatedGoals: Goal[], event: AssessmentCycleEvent) => {
+        res.write(`data: ${JSON.stringify(buildAssessmentEventData(context.metadata, updatedGoals, event))}\n\n`);
+    };
+    // Failed cycles are sent as a distinct SSE event type, so that they are never displayed as scores
+    const onFailure = (event: AssessmentCycleEvent) => {
+        res.write(`event: assessment-failed\ndata: ${JSON.stringify(event)}\n\n`);
+    };
+    service.onAssessmentUpdated(onUpdate);
+    service.onAssessmentFailed(onFailure);
 
     // Handle client disconnection
     req.on('close', () => {
         console.log('Server: Client disconnected from metrics stream');
+        service.removeListener(onUpdate);
+        service.removeListener(onFailure);
         res.end();
     });
 });

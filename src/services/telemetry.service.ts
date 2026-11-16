@@ -11,6 +11,10 @@ import { IProgressTrackable, ProgressTracker } from "./progress-tracker.service"
  * the storage of telemetry data in either database or file storage.
  */
 export class TelemetryService implements IProgressTrackable {
+    // One WebSocket collector per port, shared by all assessments of the process: the generated agents
+    // export to a fixed port, and a second server on the same port would fail (EADDRINUSE).
+    private static collectors = new Map<number, TelemetryCollector>();
+
     // Progress tracker to track and notify about progress updates during telemetry collector setup
     private progressTracker!: ProgressTracker;
 
@@ -38,8 +42,13 @@ export class TelemetryService implements IProgressTrackable {
         // Generate the configuration for the telemetry collector
         const collectorConfig = this.generateTelemetryCollectorConfiguration(appInstrumentationMetadata, TelemetryStorageEndpointType.DATABASE);
 
-        // Set up and start the WebSocket telemetry collector using the generated configuration
-        const collector = new WebSocketTelemetryCollector(collectorConfig, collectorConfig.port);
+        // Set up and start the WebSocket telemetry collector using the generated configuration (reused if already running)
+        const port = collectorConfig.port ?? 8081;
+        let collector = TelemetryService.collectors.get(port);
+        if (!collector) {
+            collector = new WebSocketTelemetryCollector(collectorConfig, port);
+            TelemetryService.collectors.set(port, collector);
+        }
         console.log(`Telemetry Service: Telemetry collector server is running on ws://localhost:${collectorConfig.port}`);
         this.progressTracker.notifyProgress(`Telemetry service: Telemetry collector server is running on ws://localhost:${collectorConfig.port}`);
 

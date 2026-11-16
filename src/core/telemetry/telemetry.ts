@@ -1,3 +1,4 @@
+import path from "path";
 import { EventEmitter } from "stream";
 import { Assessment } from "../assessment/assessment-core";
 
@@ -333,7 +334,7 @@ export abstract class TelemetryCollector {
      * @param event The `dataFlushed` event
      * @param listener the listener for the dataFlushed event
      */
-    on(event: 'dataFlushed', listener: (endpoints: TelemetryStorageEndpoint[]) => void): void {
+    on(event: 'dataFlushed', listener: (endpoints: TelemetryStorageEndpoint[], flushedBundles: string[]) => void): void {
         this.eventEmitter.on(event, listener);
     }
 
@@ -342,8 +343,8 @@ export abstract class TelemetryCollector {
      * @param event The `dataFlushed` event
      * @param data The emitted data
      */
-    emit(event: 'dataFlushed', data: any): void {
-        this.eventEmitter.emit(event, data);
+    emit(event: 'dataFlushed', data: any, flushedBundles: string[] = []): void {
+        this.eventEmitter.emit(event, data, flushedBundles);
     }
 
     /**
@@ -354,7 +355,7 @@ export abstract class TelemetryCollector {
     /**
      * Abstract method to store telemetry data in configured storage endpoints
      */
-    abstract storeTelemetry(): Promise<void>;
+    abstract storeTelemetry(batch?: any[]): Promise<void>;
 
     /**
      * Stores assessments along with telemetry data in configured storage endpoints
@@ -369,13 +370,23 @@ export abstract class TelemetryCollector {
      */
     async flushData(): Promise<void> {
         if (this.telemetryData.length > 0) { // check if new data is available locally (in memory)
+            // Take the current batch; telemetry received while the batch is being stored goes to a new buffer
+            const batch = this.telemetryData;
+            this.telemetryData = [];
             try {
-                await this.storeTelemetry();
-                this.emit('dataFlushed', this._config.storageEndpoints); // Notify listeners
-                this.telemetryData = []; // Clear in-memory telemetry data
+                await this.storeTelemetry(batch);
             } catch (error) {
+                // Keep the batch for the next attempt and report the failure (no dataFlushed event)
+                this.telemetryData = batch.concat(this.telemetryData);
                 console.error(`Telemetry Collector: Error during telemetry data flushing: ${error}`);
+                throw error;
             }
+            // Notify listeners once the batch is persisted, with the bundles it contained
+            const flushedBundles = Array.from(new Set(batch
+                .map(span => span?.attributes?.['app.metadata.instrumentationBundleName'])
+                .filter((name: any) => typeof name === 'string')
+                .map((name: string) => path.basename(name))));
+            this.emit('dataFlushed', this._config.storageEndpoints, flushedBundles);
         }
     }
 

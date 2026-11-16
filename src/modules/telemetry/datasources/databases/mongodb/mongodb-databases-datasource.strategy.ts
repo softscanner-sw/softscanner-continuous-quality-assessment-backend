@@ -62,18 +62,14 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
             const bundleName = path.basename(filter.appInstrumentationMetadata.bundleName);
             const normalizedAppName = AbstractInstrumentationBundle.extractNormalizedAppNameFromBundle(bundleName);
 
-            try {
-                const appDoc = await this.getApplicationDocument(normalizedAppName);
+            // Read failures propagate: a failed read is not an empty telemetry set
+            const appDoc = await this.getApplicationDocument(normalizedAppName);
 
-                // Check if the bundle already exists
-                const existingBundle = appDoc!.bundles.find((bundle: any) => bundle.name === bundleName);
-                if (existingBundle) {
-                    let telemetryData = existingBundle.telemetryData;
-                    console.log(`MongoDB Telemetry DataSource: Read telemetry data in MongoDB for bundle ${bundleName}.`);
-                    return telemetryData;
-                }
-            } catch (error) {
-                console.error("MongoDB Telemetry DataSource: Failed to read telemetry data:", error);
+            // Check if the bundle already exists (a bundle without stored telemetry yields an empty set)
+            const existingBundle = appDoc!.bundles.find((bundle: any) => bundle.name === bundleName);
+            if (existingBundle) {
+                console.log(`MongoDB Telemetry DataSource: Read telemetry data in MongoDB for bundle ${bundleName}.`);
+                return existingBundle.telemetryData ?? [];
             }
         }
 
@@ -127,16 +123,23 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
 
     /**
      * Stores multiple telemetry data items in the database.
-     * If the instrumentation bundle already exists, it appends the new data; otherwise, it creates a new bundle.
+     * Items are grouped by application and instrumentation bundle (from their own attributes), so that a batch
+     * containing telemetry of several applications or bundles is filed correctly. Storage errors propagate.
      * @param data - An array of telemetry data to store.
      */
     async storeAll(data: any[]): Promise<void> {
         if (!data.length || data.length <= 0) return;
 
-        const normalizedAppName: string = data[0].attributes['app.metadata.normalizedName'];
-        const bundleName: string = data[0].attributes['app.metadata.instrumentationBundleName'];
+        const groups = new Map<string, { normalizedAppName: string, bundleName: string, items: any[] }>();
+        for (const item of data) {
+            const normalizedAppName: string = item?.attributes?.['app.metadata.normalizedName'];
+            const bundleName: string = item?.attributes?.['app.metadata.instrumentationBundleName'];
+            const key = JSON.stringify([normalizedAppName, bundleName]);
+            if (!groups.has(key)) groups.set(key, { normalizedAppName, bundleName, items: [] });
+            groups.get(key)!.items.push(item);
+        }
 
-        try {
+        for (const { normalizedAppName, bundleName, items } of groups.values()) {
             const appDoc = await this.getApplicationDocument(normalizedAppName);
 
             // Check if the bundle already exists
@@ -146,29 +149,17 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
                 // Append multiple telemetry data items to the existing bundle
                 await this.collection.updateOne(
                     { normalizedAppName, "bundles.name": bundleName },
-                    { $push: { "bundles.$.telemetryData": { $each: data } } as any }
+                    { $push: { "bundles.$.telemetryData": { $each: items } } as any }
                 );
             }
-
             else {
                 // Create a new bundle with multiple telemetry data items
                 await this.collection.updateOne(
                     { normalizedAppName },
-                    {
-                        $addToSet: {
-                            bundles: {
-                                name: bundleName,
-                                telemetryData: data
-                            }
-                        }
-                    }
+                    { $addToSet: { bundles: { name: bundleName, telemetryData: items } } }
                 );
             }
-
-            console.log(`MongoDB Telemetry DataSource: Stored multiple telemetry data items in MongoDB for bundle ${bundleName}.`);
-
-        } catch (error) {
-            console.error("MongoDB Telemetry DataSource: Failed to store multiple telemetry data items in MongoDB:", error);
+            console.log(`MongoDB Telemetry DataSource: Stored ${items.length} telemetry data items in MongoDB for bundle ${bundleName}.`);
         }
     }
 
@@ -193,32 +184,32 @@ export class MongoDBTelemetryDataSource extends DatabaseTelemetryDataSource {
                 },
                 globalScore: assessment.globalScore,
                 timestamp: assessment.timestamp,
+                status: assessment.status,
+                cycle: assessment.cycle,
+                bundle: path.basename(filter.appInstrumentationMetadata.bundleName),
+                telemetryCount: assessment.telemetryCount,
+                normalization: assessment.normalization,
                 details: assessment.assessments
             }));
 
             const bundleName = path.basename(filter.appInstrumentationMetadata.bundleName);
             const normalizedAppName = AbstractInstrumentationBundle.extractNormalizedAppNameFromBundle(bundleName);
 
-            try {
+            // Storage errors propagate to the assessment cycle (which then reports a failed cycle)
+            const appDoc = await this.getApplicationDocument(normalizedAppName);
 
-                const appDoc = await this.getApplicationDocument(normalizedAppName);
-
-                // Check if the bundle already exists
-                const existingBundle = appDoc!.bundles.find((bundle: any) => bundle.name === bundleName);
-
-                if (existingBundle) {
-                    // Append multiple telemetry data items to the existing bundle
-                    await this.collection.updateOne(
-                        { normalizedAppName, "bundles.name": bundleName },
-                        { $push: { "bundles.$.assessments": { $each: assessmentDocs } } as any }
-                    );
-
-                    console.log(`MongoDB Telemetry DataSource: New assessments stored for bundle ${bundleName}`);
-                }
-
-            } catch (error) {
-                console.error("MongoDB Telemetry DataSource: Failed to store assessments in MongoDB:", error);
+            // Check if the bundle already exists
+            const existingBundle = appDoc!.bundles.find((bundle: any) => bundle.name === bundleName);
+            if (!existingBundle) {
+                throw new Error(`MongoDB Telemetry DataSource: no telemetry bundle ${bundleName} to store assessments in`);
             }
+
+            // Append the assessment records of the cycle to the bundle
+            await this.collection.updateOne(
+                { normalizedAppName, "bundles.name": bundleName },
+                { $push: { "bundles.$.assessments": { $each: assessmentDocs } } as any }
+            );
+            console.log(`MongoDB Telemetry DataSource: New assessments stored for bundle ${bundleName}`);
         }
     }
 }

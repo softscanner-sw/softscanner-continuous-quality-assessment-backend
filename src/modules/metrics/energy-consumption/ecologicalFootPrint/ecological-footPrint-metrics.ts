@@ -54,6 +54,7 @@ export class HTTPNbMetric extends LeafMetric {
             data.attributes["http.method"]
         );
 
+        this._observations = navigationTraces.length;
         if (navigationTraces.length === 0) {
             this._value = 0;
             return this._value;
@@ -114,7 +115,7 @@ export class HTTPNbInterpreter extends MetricInterpreter {
         goal: Goal,
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -166,6 +167,7 @@ export class DomMetric extends LeafMetric {
         }
 
         const values = Array.from(urlDomMap.values());
+        this._observations = values.length;
 
         this._value = values.length > 0
             ? values.reduce((sum, val) => sum + val, 0) / values.length
@@ -208,7 +210,7 @@ export class DomInterpreter extends MetricInterpreter {
         goal: Goal,
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -262,9 +264,11 @@ export class WeightMetric extends LeafMetric {
 
         // Calculer la moyenne
         const urlCount = urls.length;
+        this._observations = urlCount;
 
         // Retourner la moyenne
         if (urlCount === 0) {
+            this._value = 0;
             return 0;  // Si aucune donnée n'a été trouvée, retourner 0
         }
         this._value = totalContentLength / urlCount;
@@ -306,7 +310,7 @@ export class WeightInterpreter extends MetricInterpreter {
         goal: Goal,
         baseWeight = 0.4
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 
@@ -361,6 +365,8 @@ export class EcologicalFootPrintMetric extends CompositeMetric {
         const dom = this.children["Dom"].computeValue(telemetryData);
         const httpNb = this.children["HTTPNb"].computeValue(telemetryData);
         const weightKb = this.children["Weight"].computeValue(telemetryData);
+        // No observed EcoIndex input (DOM, requests, weight): no evidence, although the formula would give 100
+        this._observations = Math.max(0, ...Object.values(this.children).map(child => child.observations ?? 0));
     
         // Quantiles EcoIndex (valeurs officielles)
         const quantilesDom = [
@@ -441,7 +447,7 @@ export class EcologicalFootPrintInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.3
         baseWeight = 0.3
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 

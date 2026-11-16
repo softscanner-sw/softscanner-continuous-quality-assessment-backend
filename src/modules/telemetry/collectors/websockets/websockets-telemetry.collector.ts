@@ -22,6 +22,8 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
         protected port: number = 8081) {
         super(config);  // Call the parent class constructor
         this.wss = new WebSocketServer({ port }); // Create a new WebSocket server on the specified port
+        // Report server errors (e.g., port already in use) instead of crashing the backend process
+        this.wss.on('error', error => console.error(`WebSocket Telemetry Collector: server error on port ${port}: ${error}`));
         this.setupWebSocketServer(); // Setup event listeners for the WebSocket server
         this.setupPeriodicDataFlushes(); // Setup periodic telemetry data flushes
     }
@@ -96,7 +98,7 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
      * Stores the collected telemetry data using the configured storage strategies.
      * Supports both file-based and database-based storage.
      */
-    async storeTelemetry(): Promise<void> {
+    async storeTelemetry(batch: any[] = this.telemetryData): Promise<void> {
         if (this._config && this._config.storageEndpoints) {
             for (const storageEndpoint of this._config.storageEndpoints) {
                 let dataSource;
@@ -113,8 +115,11 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
                 // Store telemetry data if a valid data source is found
                 if (dataSource) {
                     await dataSource.connect();
-                    await dataSource.storeAll(this.telemetryData);
-                    await dataSource.disconnect();
+                    try {
+                        await dataSource.storeAll(batch);
+                    } finally {
+                        await dataSource.disconnect();
+                    }
                 }
             }
         }
@@ -144,8 +149,11 @@ export class WebSocketTelemetryCollector extends TelemetryCollector {
                 // Store assessments if a valid data source is found
                 if (dataSource) {
                     await dataSource.connect();
-                    await dataSource.storeAssessments(assessments, { appInstrumentationMetadata });
-                    await dataSource.disconnect();
+                    try {
+                        await dataSource.storeAssessments(assessments, { appInstrumentationMetadata });
+                    } finally {
+                        await dataSource.disconnect();
+                    }
                 }
             }
         }

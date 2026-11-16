@@ -68,7 +68,9 @@ export class PhysicalFootprintMetric extends CompositeMetric {
         const cpuTimeInSeconds = CpuTimeUsage / 1000000 ;
         
         // Calculer le footprint physique
-        this . _value = alpha * ( CpuUsage / 100) + beta * ( MemoryUsage / 100) + gamma * ( cpuTimeInSeconds / Uptime ) ;
+        this._observations = Math.max(0, ...Object.values(this.children).map(child => child.observations ?? 0));
+        // Zero uptime (no uptime observed) gives a 0 CPU-time term instead of NaN/Infinity
+        this._value = alpha * (CpuUsage / 100) + beta * (MemoryUsage / 100) + gamma * (Uptime > 0 ? cpuTimeInSeconds / Uptime : 0);
         return this . _value ;
     }
 
@@ -107,7 +109,7 @@ export class PhysicalFootprintInterpreter extends MetricInterpreter {
         // Assume a default weight of 0.3
         baseWeight = 0.3
     ) {
-        super(metric, goal, baseWeight);
+        super(metric, goal, undefined, baseWeight);
     }
 }
 

@@ -1,7 +1,7 @@
 import { ApplicationInstrumentationMetadata } from "../core/instrumentation/instrumentation-core";
-import { MetricsComputer } from "../core/metrics/metrics-computation";
+import { MetricsComputationResult, MetricsComputer } from "../core/metrics/metrics-computation";
 import { Metric, MetricHistory } from "../core/metrics/metrics-core";
-import { TelemetryCollector, TelemetryDataSource, TelemetryStorageEndpoint, TelemetryStorageEndpointType } from "../core/telemetry/telemetry";
+import { TelemetryDataSource, TelemetryStorageEndpoint, TelemetryStorageEndpointType } from "../core/telemetry/telemetry";
 import { MongoDBTelemetryDataSource } from "../modules/telemetry/datasources/databases/mongodb/mongodb-databases-datasource.strategy";
 import { FileTelemetryDataSource } from "../modules/telemetry/datasources/filesystems/filesystems-datasource.strategy";
 import { IProgressTrackable, ProgressTracker } from "./progress-tracker.service";
@@ -18,8 +18,14 @@ export class MetricsService implements IProgressTrackable {
     // Progress tracker to track and notify about progress updates during metric computation
     private progressTracker!: ProgressTracker;
 
-    // Keeps track of the historical data for each metric (used for generating trends and history-based analysis)
+    // Keeps track of the historical raw values of each metric of this assessment (used by the dashboard for trends).
+    // The history is per service instance, i.e. per assessment; normalization benchmarks are kept separately (BenchmarkStore).
     private metricsHistory: { [key: string]: MetricHistory } = {};
+
+    /**
+     * @param dataSourceFactory - Optional factory of telemetry data sources (defaults to file/MongoDB data sources).
+     */
+    constructor(private dataSourceFactory?: (storageEndpoint: TelemetryStorageEndpoint) => TelemetryDataSource) { }
 
     /**
      * Sets the progress tracker for the service. 
@@ -36,6 +42,7 @@ export class MetricsService implements IProgressTrackable {
      * @returns A `TelemetryDataSource` instance for interacting with telemetry data
      */
     private createTelemetryDataSource(storageEndpoint: TelemetryStorageEndpoint): TelemetryDataSource {
+        if (this.dataSourceFactory) return this.dataSourceFactory(storageEndpoint);
         switch (storageEndpoint.type) {
             case TelemetryStorageEndpointType.FILE:
                 // File-based telemetry storage
@@ -54,65 +61,41 @@ export class MetricsService implements IProgressTrackable {
     }
 
     /**
-     * Computes metrics using telemetry data collected from a specified source (e.g., a database or file).
-     * The service listens for telemetry updates and triggers metric computation when new data is available.
-     * @param collector - A `TelemetryCollector` instance to collect telemetry data
+     * Computes the selected metrics for one assessment cycle from the telemetry of the application's bundle.
+     * The computation is awaited; the metric history entries are stamped with the cycle timestamp.
+     * @param storageEndpoint - Telemetry storage endpoint to read from
      * @param appInstrumentationMetadata - Metadata about the application being instrumented
      * @param selectedMetrics - List of metrics to compute
-     * @returns A Promise that resolves with the computed metrics
+     * @param timestamp - Timestamp of the assessment cycle
+     * @returns The computed metrics and the number of telemetry items read
+     * @throws if there is no metric, the telemetry cannot be read, or a value is not finite
      */
-    async computeMetrics(collector: TelemetryCollector, appInstrumentationMetadata: ApplicationInstrumentationMetadata, selectedMetrics: Metric[]): Promise<Metric[]> {
+    async computeCycle(storageEndpoint: TelemetryStorageEndpoint, appInstrumentationMetadata: ApplicationInstrumentationMetadata, selectedMetrics: Metric[], timestamp: string): Promise<MetricsComputationResult> {
         if (!this.progressTracker) {
             throw new Error('Progress tracker not set in MetricsService.');
         }
-
-        console.log('Metrics Service: Metrics to compute:', selectedMetrics.map(metric => metric.name));
-
-        // Ensure that there are metrics to compute
         if (selectedMetrics.length === 0) {
             throw new Error('Metrics Service: No metrics found for the selected goals.');
         }
 
-        return new Promise((resolve, reject) => {
-            // Listen for the event when telemetry data is flushed (i.e., new telemetry data is available)
-            collector.on('dataFlushed', async (storageEndpoints: TelemetryStorageEndpoint[]) => {
-                console.log('Metrics Service: New telemetry data flushed, triggering metric computation...');
-                this.progressTracker.notifyProgress('Metrics Service: New telemetry data flushed, triggering metric computation...');
+        console.log('Metrics Service: New telemetry data flushed, triggering metric computation...');
+        this.progressTracker.notifyProgress('Metrics Service: New telemetry data flushed, triggering metric computation...');
 
-                try {
-                    // Iterate over all storage endpoints to compute metrics from each source
-                    for (const storageEndpoint of storageEndpoints) {
-                        const telemetryDataSource = this.createTelemetryDataSource(storageEndpoint);
-                        const metricsComputer = new MetricsComputer(selectedMetrics, telemetryDataSource);
+        const metricsComputer = new MetricsComputer(selectedMetrics, this.createTelemetryDataSource(storageEndpoint));
+        const result = await metricsComputer.onTelemetryUpdate(storageEndpoint, appInstrumentationMetadata);
 
-                        // Subscribe to the 'metricsComputed' event to receive the computed metrics
-                        metricsComputer.on('metricsComputed', (computedMetrics: Metric[]) => {
-                            // Add timestamp to each metric and update the history
-                            const timestamp = new Date().toISOString();
-                            computedMetrics.map(metric => {
-                                if (!this.metricsHistory[metric.acronym]) {
-                                    this.metricsHistory[metric.acronym] = [];
-                                }
-
-                                this.metricsHistory[metric.acronym].push({ timestamp, value: metric.value || 0 });
-                                metric['_history'] = this.metricsHistory[metric.acronym];  // Attach history to metric
-                            });
-
-                            // Notify listeners that new metrics are available
-                            this.notifyMetricsUpdated(computedMetrics);
-                            resolve(computedMetrics);
-                        });
-
-                        // Trigger metric computation using the telemetry data source
-                        await metricsComputer.onTelemetryUpdate(storageEndpoint, appInstrumentationMetadata);
-                        this.progressTracker.notifyProgress('Metrics Service: Metrics computation complete.');
-                    }
-
-                } catch (error) {
-                    reject(error);
-                }
-            });
+        // Update the history of raw values with the cycle timestamp
+        result.metrics.forEach(metric => {
+            if (!this.metricsHistory[metric.acronym]) {
+                this.metricsHistory[metric.acronym] = [];
+            }
+            this.metricsHistory[metric.acronym].push({ timestamp, value: metric.value });
+            metric['_history'] = this.metricsHistory[metric.acronym];  // Attach history to metric
         });
+
+        this.progressTracker.notifyProgress('Metrics Service: Metrics computation complete.');
+        this.notifyMetricsUpdated(result.metrics);
+        return result;
     }
 
     /**

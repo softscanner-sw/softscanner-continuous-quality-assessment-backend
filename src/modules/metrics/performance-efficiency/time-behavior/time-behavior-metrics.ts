@@ -135,6 +135,7 @@ export class ARTMetric extends LeafMetric {
             data.attributes && data.attributes["http.method"]
         );
 
+        this._observations = httpTraces.length;
         if (httpTraces.length === 0) {
             this._value = 0;
             return this._value;
@@ -245,6 +246,7 @@ export class P95RTMetric extends LeafMetric {
             data.attributes && data.attributes["http.method"]
         );
 
+        this._observations = 0;
         if (httpTraces.length === 0) {
             this._value = 0;
             return this._value;
@@ -261,6 +263,7 @@ export class P95RTMetric extends LeafMetric {
             }
         }).filter(d => d > 0);
 
+        this._observations = durations.length;
         if (durations.length === 0) {
             this._value = 0;
             return this._value;
@@ -356,6 +359,7 @@ export class RTVarMetric extends LeafMetric {
             data.attributes && data.attributes["http.method"]
         );
 
+        this._observations = 0;
         if (httpTraces.length === 0) {
             this._value = 0;
             return this._value;
@@ -372,6 +376,7 @@ export class RTVarMetric extends LeafMetric {
             }
         }).filter(d => d > 0);
 
+        this._observations = durations.length;
         if (durations.length === 0) {
             this._value = 0;
             return this._value;
@@ -474,6 +479,7 @@ export class LPIMetric extends CompositeMetric {
         const p95rt = this.children["P95RT"].computeValue(telemetryData);
         const rtvar = this.children["RTVar"].computeValue(telemetryData);
         // Compute LPI as the average of ART, P95RT, and RTVar.
+        this._observations = this.children["ART"].observations ?? 0;
         this._value = (art + p95rt + rtvar) / 3;
         return this._value;
     }
@@ -603,7 +609,8 @@ export class TPUTMetric extends LeafMetric {
         const spansInWindow = httpTraces.filter(trace => Utils.toMs(trace.startTime) >= windowStart);
 
         // Compute throughput as number of spans divided by the observation window (in seconds).
-        this._value = spansInWindow.length / (observationWindowMs / 1000);
+        // A zero-length window (single request, or simultaneous requests) gives 0 instead of Infinity
+        this._value = observationWindowMs > 0 ? spansInWindow.length / (observationWindowMs / 1000) : 0;
         return this._value;
     }
 
