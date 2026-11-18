@@ -1,0 +1,7 @@
+# Evaluation data and checksums are stored byte-exact (no line-ending conversion),
+# so that SHA-256 checksums in replication/manifest/ hold on every platform.
+replication/eq1/data/** -text
+replication/eq2/data/** -text
+replication/manifest/SHA256SUMS -text
+replication/results/** text eol=lf
+replication/**/*.mjs text eol=lf

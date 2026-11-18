@@ -1,0 +1,6 @@
+[submodule "demo/demo-posts-users-backend-nodejs"]
+	path = demo/demo-posts-users-backend-nodejs
+	url = https://github.com/softscanner-sw/demo-posts-users-backend-nodejs.git
+[submodule "demo/demo-posts-users-frontend-angular"]
+	path = demo/demo-posts-users-frontend-angular
+	url = https://github.com/softscanner-sw/demo-posts-users-frontend-angular.git

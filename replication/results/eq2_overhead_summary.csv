@@ -1,0 +1,7 @@
+metric,O_general_purpose_pct,O_goal_scoped_pct,reduction_pct
+Scripting Time,64.311794,35.708927,44.475305
+Rendering Time,5.324626,2.490304,53.230435
+Tasks Duration,39.355668,22.554393,42.690865
+Average Memory,23.417548,19.458409,16.906719
+Peak Memory,21.342382,19.162309,10.214757
+Network Requests,235.455332,15.169831,93.557236

@@ -1,0 +1,33 @@
+{
+  "_source": "Values transcribed from the dissertation (Chapter 4, Section 4.4) for comparison only; they are not inputs to any computation.",
+  "eq1": {
+    "_location": "Section 4.4.1, Results (Effort reduction, Consistency)",
+    "recomputable": {
+      "baseline_min_s": { "value": 8100, "decimals": 0 },
+      "baseline_max_s": { "value": 21600, "decimals": 0 },
+      "baseline_median_s": { "value": 14700, "decimals": 0 },
+      "softscanner_min_s": { "value": 31, "decimals": 0 },
+      "softscanner_max_s": { "value": 34, "decimals": 0 },
+      "softscanner_median_s": { "value": 33, "decimals": 0 },
+      "median_participant_reduction_pct": { "value": 99.8, "decimals": 1 },
+      "cv_baseline_pct": { "value": 28.2, "decimals": 1 },
+      "cv_softscanner_pct": { "value": 3.0, "decimals": 1 }
+    },
+    "reported_not_recomputable": {
+      "precision_recall_baseline_pct": "approximately 50",
+      "precision_recall_softscanner_pct": 100
+    }
+  },
+  "eq2": {
+    "_location": "Table 4.6 (tab:softscanner_nfa_eq2_overhead_results) and Section 4.4.2, Network overhead",
+    "table_4_6": {
+      "scripting":   { "general": 64.3,  "goal": 35.7, "reduction": 44 },
+      "rendering":   { "general": 5.3,   "goal": 2.5,  "reduction": 53 },
+      "tasks":       { "general": 39.4,  "goal": 22.6, "reduction": 43 },
+      "avg_memory":  { "general": 23.4,  "goal": 19.5, "reduction": 17 },
+      "peak_memory": { "general": 21.3,  "goal": 19.2, "reduction": 10 },
+      "requests":    { "general": 235.5, "goal": 15.2, "reduction": 94 }
+    },
+    "industrial_app_2_requests_range": { "goal": [0.3, 6.6], "general": [175.5, 331.9] }
+  }
+}

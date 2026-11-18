@@ -1,0 +1,10 @@
+statistic,value
+baseline_min_s,8100
+baseline_max_s,21600
+baseline_median_s,14700
+softscanner_min_s,31
+softscanner_max_s,34
+softscanner_median_s,33
+median_participant_reduction_pct,99.777637
+cv_baseline_pct,28.187490
+cv_softscanner_pct,3.030303

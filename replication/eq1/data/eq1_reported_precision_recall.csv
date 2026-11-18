@@ -1,0 +1,7 @@
+participant,precision_baseline_pct,precision_softscanner_pct,recall_baseline_pct,recall_softscanner_pct
+P1,50,100,50,100
+P2,50,100,50,100
+P3,50,100,50,100
+P4,50,100,50,100
+P5,50,100,50,100
+P6,50,100,50,100

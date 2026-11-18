@@ -1,343 +1,200 @@
-# SoftScanner Backend – Continuous Quality Assessment Platform
-SoftScanner is an **automated continuous quality assessment (CQA) platform** designed for **web applications**. This backend service provides dynamic **instrumentation, telemetry collection and storage, metric computation, and continuous goal assessments** using the **SoftScanner Quality Mapping Model (SSQMM)**, aligned with **ISO/IEC 25010 (2023) standards**.
+# SoftScanner-NFA: goal-driven non-functional quality assessment of web applications
 
-SoftScanner maps high-level quality goals to observable metrics through **SSQMM**. Each goal assessment is **timestamped**, enabling **historical tracking of quality trends** and **long-term storage for analysis**.
+SoftScanner-NFA is the backend of the non-functional part of SoftScanner. It derives runtime instrumentation from selected quality goals, injects a generated OpenTelemetry-based agent into a web application, collects the resulting telemetry, and continuously computes metric values and normalized, weighted goal scores with their constituent records.
 
-Instrumentation bundles are dynamically generated and deployed to target applications in a non-invasive manner.
-The design is **modular and extensible**, making it easy to integrate with different telemetry providers (e.g., tracers, loggers, etc.) and collectors (OTLP, websockets, etc.).
-The instrumentation framework is designed to support **both frontend and backend** web applications.
-The core instrumentation logic is extended by specific implementations for the generation, bundling, and injection of instrumentation agents.
-For example, OpenTelemetry is used to generate automated tracing instrumentation agents for both frontend (*Angular, React*) and backend (*Node.js*) applications, whereas **Webpack** and **esBuild** are used to bundle frontend and backend instrumentation agents respectively.
-Moreover, specific implementations are created for the injection of instrumentation agents into Angular, React, and Node.js applications respectively.
+This repository is research software. It accompanies a doctoral dissertation, and this branch also carries the dissertation's **replication package** (`replication/`).
 
----
+> **Research prototype.** The backend is not hardened for production deployment and must not be exposed to untrusted networks in its present configuration (see [Limitations](#limitations-of-the-research-prototype)). Several implemented metric families are experimental and were not validated by the dissertation (see [Scope](docs/SCOPE.md)).
 
-## 🌟 Key Features
-- **📊 Continuous Quality Assessment** → Automates continuous monitoring of quality goals.  
-- **🕒 Timestamped Goal Assessments** → Tracks assessments over time for historical analysis.  
-- **📈 Dynamic Metric Evaluations** → Computes metrics (via refactored composite/leaf metric APIs) with context-aware mapping.
-- **📡 API-Driven Architecture** → Exposes endpoints for **metadata, goals, metrics, and assessments**.  
-- **🛠️ Non-Invasive Instrumentation** → Non-invasive generation, bundling, and injection of telemetry agents into target applications.  
-- **⚡ Continuous Progress Updates** → Streams live progress and assessment results using **Server-Sent Events (SSE) events**.  
-- **📏 Quality Mapping Model (SSQMM)** → Maps **abstract stakeholder goals** to **observable metrics**.
-- **🧩 Multi-Target Instrumentation Support** → Supports **frontend instrumentation** (Angular, React) and **backend instrumentation** (Node.js) via specialized adapters and bundling strategies.
-- **🛠️ Automated and Tailored Instrumentation Bundling** Supports **Webpack** and **esBuild** bundling for frontend and backend instrumentation agents, respectively.
-- **💾 Telemetry Collection and Storage** → Supports MongoDB and filesystem-based storage for telemetry data.  
-- **🗂️ Modular and Extensible** → Easily add new goals, metrics, and telemetry providers.
+## Contents
 
----
+- [Relationship to the dissertation](#relationship-to-the-dissertation)
+- [Architecture in brief](#architecture-in-brief)
+- [Supported and experimental scope](#supported-and-experimental-scope)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Running the backend](#running-the-backend)
+- [Running the tests](#running-the-tests)
+- [Optional demonstration](#optional-demonstration)
+- [Replication package](#replication-package)
+- [Limitations of the research prototype](#limitations-of-the-research-prototype)
+- [Versions, licence and citation](#versions-licence-and-citation)
 
-## Demo & Tutorial Videos
-### SoftScanner Platform Videos
-- [Installation of SoftScanner](https://youtu.be/gejrlsAMwnw)
-- [Installation and Overview of an Angular/Node.js Test Application](https://youtu.be/pnItMPW2JiE)
-- [Using SoftScanner with an Angular Web Application for User Engagement](https://youtu.be/jpTOXk8TpBE)
+## Relationship to the dissertation
 
-### Continuous Quality Assessment for Web Applications (CQAWA) Challenge Videos
-- [CQAWA Challenge 1: Reconciling Diverse Stakeholder Quality Perspectives](https://youtu.be/VmfXqgDhzWE)
-- [CQAWA Challenge 2: Bridging the Gap Between Conceptual Quality Goals and Technical Observable Data](https://youtu.be/7OCJfO5lQ64)
-- [CQAWA Challenge 3: Minimizing Performance Overhead in Data Collection](https://youtu.be/Zsnhsx9Lc1M)
-- [CQAWA Challenge 4: Minimizing Codebase Modifications for Instrumentation](https://youtu.be/bLY8h29H934)
+The dissertation *SoftScanner: An Approach for Functional Testing and Non-Functional Continuous Quality Assessment of Frontend Web Applications* (Bachar Rima, Université de Montpellier, 2026) has two contributions:
 
----
+- **SoftScanner-FA** (functional assessment) derives and executes browser tests from frontend source code. It lives in separate repositories and is not part of this repository.
+- **SoftScanner-NFA** (non-functional assessment, Chapter 4) is this repository. It covers the quality goal model, the goal-to-metric-to-observation mapping, goal-driven instrumentation, and runtime assessment.
 
-## 📁 Project Structure
-```plaintext
-src/
-├── api/
-│   └── server.ts                 # Express API server entry point
-├── core/
-│   ├── analyzers/                # Project code analysis core
-│   ├── application/              # Application metadata
-│   ├── assessment/               # Core assessment logic and strategies
-│   ├── goals/                    # Goal definitions
-│   ├── instrumentation/          # Instrumentation management and injection
-│   ├── metrics/                  # Core metrics definitions, computers, interpreters, and mappers
-│   ├── models/                   # Quality model and SSQMM
-│   ├── telemetry/                # Core telemetry configuration, collection, and storage
-│   └── util/                     # Utility functions and dependency management
-├── modules/
-│   ├── analyzers/                # Static code analysis implementations (Angular, etc.)
-│   ├── instrumentation/          # Instrumentation implementations (Angular, React, Node, Webpack, esBuild, OpenTelemetry)
-│   ├── metrics/                  # Metrics implementations and mappings for various quality goals
-│   └── telemetry/                # Telemetry collection and data source strategies (databases, filesystems)
-├── services/                     # Backend services (instrumentation, telemetry, metrics, quality assessment, progress tracking)
+The implementation that the dissertation describes is the immutable tag **[`thesis-nfa-impl-2026-11-16`](https://github.com/softscanner-sw/softscanner-continuous-quality-assessment-backend/tree/thesis-nfa-impl-2026-11-16)** (commit `cffc96c`). The replication package adds documentation, analysis scripts, retained evaluation data and repository maintenance on top of that commit. It does not change the quality model, metrics, normalization, aggregation, instrumentation or assessment logic.
+
+The dissertation's evaluation (EQ1, EQ2) was carried out with earlier, 2024 versions of the SoftScanner instrumentation, before this repository existed. **The evaluation results are therefore not measurements of the tagged implementation.** What the package can and cannot reproduce is stated in [Reproducibility levels](#reproducibility-levels).
+
+## Architecture in brief
+
+```
+quality goal(s) ──► Quality Model (ISO/IEC 25010-based goal hierarchy)
+                    │
+                    ▼
+               Quality Mapping Model: leaf goal → metrics → required observations
+                    │   (observable registry: src/core/metrics/metric-observables.ts)
+                    ▼
+               Instrumentation capability registry → selected OpenTelemetry modules, events, processors
+                    │   (src/core/instrumentation/instrumentation-capabilities.ts)
+                    ▼
+               Agent generation (OpenTelemetry JS) → bundling (webpack: Angular/React; esbuild: Node.js)
+                    ▼
+               Injection into the target project (Angular, React, Node.js strategies)
+                    ▼
+   instrumented application ──WebSocket (ws://localhost:8081)──► telemetry collector ──► MongoDB
+                    ▼
+               Assessment cycles: metric computation → normalization → weighted aggregation → score records
+                    ▼
+               REST + Server-Sent Events API (http://localhost:3000)
 ```
 
----
+Details and a source map are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The dashboard (web UI) is a separate repository, [softscanner-continuous-quality-assessment-frontend](https://github.com/softscanner-sw/softscanner-continuous-quality-assessment-frontend).
 
-## 🔧 Setup & Installation
-### 1️⃣ Prerequisites
-Ensure you have the following installed:
-- **Node.js** (>= 16.x recommended)
-- **npm** (bundled with Node.js)
-- **MongoDB** (>= 6.x)
-- **TypeScript Compiler**
-- **Webpack** (for generating instrumentation bundles)
+## Supported and experimental scope
 
-### 2️⃣ Installation
-Clone the repository and install dependencies:
+The code base is wider than the scope the dissertation reports and evaluates. The two enumerations describe different scopes and are not meant to coincide:
+
+| | Dissertation (Chapter 4) | Code at the tagged revision |
+|---|---|---|
+| Quality goals | 34 conceptual goals | 49 goal nodes (10 composite, 39 leaves) |
+| Operationalized leaf goals | 8, within the dissertation's stated scope | 9 leaves with goal-to-metric mappings |
+| Metrics | 49 implemented metrics with declared observation requirements | 49 metrics in the observable registry |
+| Empirically evaluated | *User Engagement* (NoU, UIFu) in EQ1; instrumentation overhead in EQ2 | — |
+
+Metric families beyond *User Engagement* and *Time Behavior* are **experimental**. They include Confidentiality, Non-repudiation, Resource Utilization, and Physical and Ecological Footprint. Their formulas, normalization benchmarks and weights were not validated, and their values should not be interpreted as validated quality measurements. See [docs/SCOPE.md](docs/SCOPE.md).
+
+## Installation
+
+**Prerequisites:**
+- Node.js **22 or later** and npm (tested with Node.js 22.18.0 and npm 10.9.3). The generated Node.js agent relies on the global `WebSocket` of Node.js 22+.
+- Git.
+- MongoDB (tested with a local MongoDB server; any 6.x or later server should work). It is needed only to run the backend, not for the tests or the replication analyses.
+
 ```bash
-git clone https://github.com/softscanner-sw/softscanner-backend.git
-cd softscanner-backend
-npm install
+git clone --recurse-submodules https://github.com/softscanner-sw/softscanner-continuous-quality-assessment-backend.git
+cd softscanner-continuous-quality-assessment-backend
+git checkout replication-v1    # or thesis-nfa-impl-2026-11-16 for the implementation only
+git submodule update --init    # demo applications (optional)
+npm ci
 ```
 
-### 3️⃣ Running MongoDB
-Create a database named `continuous-quality-assessment-web-telemetry-mongodb` at `localhost:27017`.  
-You can use [MongoDB Compass](https://www.mongodb.com/products/tools/compass) for easy management.
+Install the development dependencies as well (the default for `npm ci`). The agent generator uses `webpack`, `ts-loader`, `babel-loader` and `typescript` at run time.
 
-Start MongoDB:
+## Configuration
+
+The tagged implementation uses fixed values; there are no environment overrides.
+
+| Setting | Value | Source |
+|---|---|---|
+| REST/SSE API | `http://localhost:3000` | `src/api/server.ts` |
+| WebSocket telemetry collector (started by the backend) | `ws://localhost:8081` | `src/services/telemetry.service.ts`, `src/core/instrumentation/instrumentation-manager.ts` |
+| MongoDB | `mongodb://localhost:27017`, database `continuous-quality-assessment-web-telemetry-mongodb` | `src/services/telemetry.service.ts` |
+| Telemetry flush interval | 3 s | `src/services/telemetry.service.ts` |
+| Browser span batching | `BatchSpanProcessor`, 510 ms scheduled delay | generated agent |
+
+More detail, including the API and what an assessment writes to disk, is in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
+## Running the backend
+
 ```bash
-mongo "mongodb://localhost:27017/"
-use "continuous-quality-assessment-web-telemetry-mongodb"
+npm start            # compiles TypeScript (dist/) and starts http://localhost:3000
 ```
 
-Telemetry and assessments are stored in MongoDB or on filesystems. Each instrumentation bundle has associated telemetry data and assessments. This change enables:
+**Main endpoints:**
 
-- **Long-term storage of quality assessments**
-- **Easy retrieval for comparative analysis**
-- **Improved monitoring and tracking of quality trends**
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/quality-model` | the goal hierarchy |
+| `POST /api/assessment` | start an assessment (`{ "metadata": {name, type, technology, path, url}, "selectedGoals": ["User Engagement"] }`). Returns `202` with an `assessmentId` |
+| `GET /api/assessment-status?assessmentId=…` | lifecycle state and last cycle outcome |
+| `GET /api/progress?assessmentId=…` | progress stream (SSE) |
+| `GET /api/assessments?assessmentId=…` | assessment-cycle stream (SSE); failed cycles use the event type `assessment-failed` |
 
-#### MongoDB Database Schema
-```json
-{
-  "normalizedAppName": "posts-users-ui-ng",
-  "bundles": [
-    {
-      "name": "posts-users-ui-ng_2025_02_13T13_05_30_915Z.bundle.js",
-      "telemetryData": [...],
-      "assessments": [
-        {
-          "goal": "User Engagement",
-          "globalScore": 85,
-          "timestamp": "2025-02-13T13:05:30Z",
-          "details": [
-            {
-              "metric": "NUU",
-              "value": 10,
-              "weight": 0.4,
-              "timestamp": "2025-02-13T13:05:30Z"
-            },
-            {
-              "metric": "UIF",
-              "value": 15,
-              "weight": 0.6,
-              "timestamp": "2025-02-13T13:05:30Z"
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
+**`POST /api/assessment` modifies the project at `metadata.path`:** it injects the generated agent into that project. Use a disposable copy of the target application.
 
-### 4️⃣ Running the Backend
+## Running the tests
+
 ```bash
-npm start
-```
-This will:
-1. **Compile TypeScript files**.
-2. **Launch the backend server** (`http://localhost:3000`).
-3. **Expose REST API endpoints** for quality assessment.
-4. **Enable dynamic instrumentation generation and injection** (*supporting both frontend and backend agents*).
-5. **Support telemetry collection, periodic flushing, and live assessment streaming.**
-
----
-
-## 📡 API Overview
-SoftScanner Backend provides structured **RESTful APIs** to interact with **quality models, goals, metrics, and assessments**.
-
-### 🔗 Key Endpoints
-| Method   | Endpoint                            | Description                                       |
-| -------- | ----------------------------------- | ------------------------------------------------- |
-| **GET**  | `/api/quality-model`                | Retrieves the quality model and associated goals. |
-| **POST** | `/api/assessment`                   | Initiates a new quality assessment.               |
-| **GET**  | `/api/progress?assessmentId=XYZ`    | Streams live progress updates via SSE.            |
-| **GET**  | `/api/assessments?assessmentId=XYZ` | Streams live assessment results continously.      |
-
----
-
-## 📜 Quality Assessment Workflow
-### 1️⃣ Define Quality Goals and Provide Metadata
-Users select relevant **quality goals** and provide application metadata.  
-
-### 2️⃣ Automatic Instrumentation
-SoftScanner dynamically generates, bundles, and injects **telemetry agents** for runtime data collection.  
-
-### 3️⃣ Data Collection, Storage & Metric Computation
-The instrumented application continuously collects **real-time data** (stored in MongoDB or filesystem), and **SoftScanner computes quality metrics** using context-aware goal–metric mappings.
-
-### 4️⃣ Timestamped Goal Assessments
-- Each goal stores multiple **timestamped assessments** that capture metric contributions and global scores.  
-- Historical tracking enables **trend analysis** and **comparative assessments**.  
-
-### 5️⃣ Real-Time API Updates
-Users can monitor:  
-- **Progress Updates:** `/api/progress` provides live progress notifications via SSE.  
-- **Assessment Results:** `/api/assessments` streams real-time quality assessments via SSE.
-
----
-
-## 📡 API Usage Examples
-### 1️⃣ Retrieve Quality Model
-#### Request
-```http
-GET /api/quality-model
-```
-#### Response
-```json
-{
-    "name":"ISO/IEC 25010 - Product Quality Model",
-    "purpose":"The ISO/IEC 25010 (2023) identifies eight main quality characteristics of software systems...",
-    "assessmentMethodology":"https://www.iso.org/obp/ui/#iso:std:iso-iec:25010:ed-2:v1:en",
-    "goals":[
-        {
-            "name":"Interaction Capability",
-            "description":"The ability of a product to be interacted with by specified users ...",
-            "weight":1,
-            "metrics":["Number of Unique Users","User Interaction Frequency"],
-            "subGoals":[
-                {"name":"Appropriateness Recognizability"...},
-                ...
-                {
-                    "name":"User Engagement",
-                    "description":"The degree to which the software presents functions and information in an inviting and motivating manner encouraging continued interaction",
-                    "weight":1,
-                    "metrics":["Number of Unique Users","User Interaction Frequency"]
-                },
-                ...
-            ]
-        },
-        ...
-    ]
-  }
+npm test
 ```
 
-### 2️⃣ Start an Assessment
-#### Request
-```http
-POST /api/assessment
-Content-Type: application/json
+This compiles the sources with `tsc` and runs the Node.js test runner on `test/*.test.js`. The same command works in Windows and POSIX shells.
+
+The expected result at the tagged revision is **94 tests: 91 pass, 0 fail, 3 skipped**. The three skipped tests are MongoDB integration tests. They run only when `SSNFA_MONGO_URI` points to a MongoDB server, for example `SSNFA_MONGO_URI=mongodb://localhost:27999 npm test`. Each run creates and drops its own database `ssnfa_test_<pid>_<time>`. **Use a disposable MongoDB instance, never one that holds data you need.**
+
+The suite covers:
+- the goal model and goal-to-metric mapping;
+- the observable registry and instrumentation selection;
+- injection and cleanup (Angular, React, Node.js);
+- metric values, normalization and assessment cycles;
+- the telemetry collector (with a stub).
+
+It does not run a browser, a generated agent, the HTTP server or bundling.
+
+## Optional demonstration
+
+[replication/demonstration/](replication/demonstration/README.md) shows how to:
+- generate the User Engagement agent for the Posts & Users Angular demo without modifying any application (`node replication/demonstration/generate_agent.mjs`);
+- run an end-to-end assessment of the demo applications (manual, requires MongoDB).
+
+## Replication package
+
 ```
-```json
-{
-  "metadata": {
-    "name": "My Web App",
-    "type": "Web (Frontend)",
-    "technology": "Angular",
-    "path": "/absolute/path/to/project",
-    "url": "http://localhost:4200"
-  },
-  "selectedGoals": ["User Engagement"]
-}
-```
-#### Response
-```json
-{
-  "message": "Assessment started successfully!",
-  "assessmentId": "1706308901234",
-  "progressEndpoint": "/api/progress?assessmentId=1706308901234",
-  "assessmentEndpoint": "/api/assessments?assessmentId=1706308901234"
-}
+replication/
+├── README.md              how to run the analyses; reproducibility levels
+├── eq1/                   EQ1 participant-level data (derived CSV) and analysis script
+├── eq2/                   EQ2 raw run-level measurements (original CSV files) and analysis script
+├── results/               generated reports and the values reported in the dissertation
+├── demonstration/         agent-generation demonstration of the current implementation
+├── limitations/           evidence and reproducibility boundaries
+└── manifest/              artifact manifest, provenance classes, SHA-256 checksums
 ```
 
-### 3️⃣ Stream Progress Updates
-#### Request
-```http
-GET /api/progress?assessmentId=1706308901234
-```
-#### Response (SSE)
-```json
-{ "type": "progress", "message": "Instrumentation completed" }
-```
+**Run both analyses** (Node.js only, no dependencies):
 
-### 4️⃣ Stream Assessment Results
-#### Request
-```http
-GET /api/assessments?assessmentId=1706308901234
-```
-#### Response (SSE)
-```json
-{
-    "metadata": { /* same format as input metadata in /assessment endpoint */ },
-    "selectedGoals": [
-        {
-            "name": "User Engagement",
-            "description": "The degree to which the software presents functions...",
-            "weight": 1,
-            "metrics": [
-                {
-                    "name": "Number of Unique Users",
-                    "acronym": "NUU",
-                    "description": "Number of distinct users using an application",
-                    "value": 2,
-                    "unit": "users",
-                    "history": [
-                        {
-                            "timestamp": "2025-01-27T23:35:11.879Z",
-                            "value": 0
-                        },
-                        ...
-                    ]
-                },
-                {
-                    "name": "User Interaction Frequency",
-                    "acronym": "UIF",
-                    "description": "How frequently users interact with the software during a typical session",
-                    "value": 9,
-                    "unit": "interactions/session",
-                    "history": [ ... ]
-                }
-            ],
-            "assessment": {
-                "globalScore": 0.014799999999999999,
-                "details": [
-                    { "metric": "NUU", "value": 0.01, "weight": 0.4 },
-                    { "metric": "UIF", "value": 0.018, "weight": 0.6 }
-                ]
-            }
-        },
-        ...
-    ]
-}
-```
-
----
-
-## 🌍 Example Usage
-### 1️⃣ Start SoftScanner Backend
 ```bash
-npm start
+npm run replicate        # = node replication/eq1/analyze_eq1.mjs --check && node replication/eq2/analyze_eq2.mjs --check
 ```
-### 2️⃣ Open SoftScanner Web UI
-Use the accompanying frontend project: [SoftScanner UI Repository](https://github.com/softscanner-sw/continuous-quality-assessment-web-ui).
 
-Alternatively, use **Postman** to interact with the backend API.
+Each script writes its report to `replication/results/`. It exits with code 1 if a recomputed value differs from the dissertation at the reported precision.
 
-### 3️⃣ Perform a Quality Assessment
-1. Provide Application Metadata in the UI.
-2. Select quality goals in the UI.
-3. Start Quality Assessment.
-4. Open your web application in a browser → SoftScanner **automatically tracks interactions**.
-5. SoftScanner generates real-time telemetry and computes assessments automatically.
+### Reproducibility levels
 
-### 4️⃣ View Results
-- Continuous **progress updates** (`/api/progress`).
-- Timestamped **goal assessments** (`/api/assessments`).
-- Metric **history and contributions** displayed via **interactive charts**.
+| Result (dissertation, Section 4.4) | Level |
+|---|---|
+| EQ2 Table 4.6, Figure 4.9 values, and the Industrial Application 2 request ranges | **Recomputed from the original raw run-level measurements** (22/22 values reproduced) |
+| EQ1 time ranges, medians, median reduction, and CV (Figures 4.6 and 4.8) | **Recomputed from retained participant-level values** (9/9 values reproduced) |
+| EQ1 precision and recall (Figure 4.7) | **Historical reported values**: retained per participant, but the reference and collected observations needed to recompute them were not retained |
+| Re-running EQ1 (user study) or EQ2 (benchmark) | **Not reproducible** with this package. The 2024 instrumentation bundles, the benchmark harness and the industrial applications are not available (see [replication/limitations](replication/limitations/README.md)) |
+| Current implementation behavior | **Executable**: tests and the agent-generation demonstration. This is not an evaluation |
 
----
+## Limitations of the research prototype
 
-## 🛣 Roadmap
-- Add support for **more metrics** (e.g., Security, Energy Consumption).
-- Expand integration with **Prometheus** and other observability tools.
-- Leverage the code analysis API for the generation of automated tests for CQA of web applications.
+- **Not for production:** the backend is a local research prototype, not hardened for deployment, and must not be exposed to untrusted networks in its present configuration.
+  - The API and the telemetry collector have no authentication.
+  - Cross-origin requests are accepted from any origin.
+  - An assessment request writes into the file-system path it names.
+- **Fixed configuration:** ports and the MongoDB address are fixed in the code.
+- **Personal data:** generated agents record pseudonymous user, visit and session identifiers, and they may record network and host attributes. Deploying them on real users requires a data-protection assessment.
+- **Experimental metrics:** several metric families are experimental and unvalidated (see [Scope](docs/SCOPE.md)).
 
----
+## Versions, licence and citation
 
-## 📜 License
-SoftScanner Backend is licensed under the **MIT License**.
+| Item | Identifier |
+|---|---|
+| Implementation described in the dissertation | tag `thesis-nfa-impl-2026-11-16` (commit `cffc96c`) |
+| Replication package | tag `replication-v1`, branch `replication/thesis-nfa-2026` |
+| Historical states | tags `archive/*` (archival references; not releases, not necessarily buildable) |
 
----
+**Licence:** MIT ([LICENSE](LICENSE)), copyright softscanner-sw. The demo applications under `demo/` are separate repositories with their own licences (both MIT at the referenced commits). The EQ1/EQ2 data under `replication/` are released with this package for verification of the dissertation's results.
+
+**Citation:** please cite the dissertation and the replication-package tag:
+
+> Bachar Rima. *SoftScanner: An Approach for Functional Testing and Non-Functional Continuous Quality Assessment of Frontend Web Applications.* Doctoral dissertation, Université de Montpellier, 2026.
+> Replication package: https://github.com/softscanner-sw/softscanner-continuous-quality-assessment-backend/tree/replication-v1
